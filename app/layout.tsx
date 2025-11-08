@@ -7,9 +7,14 @@ import "./globals.css"
 const _inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.app",
+  title: "Delta-Infinity - GPU Memory Waste Detector",
+  description: "Find and fix GPU memory waste in ML training. Analyze BERT, GPT-2, ResNet models. 2-3x speedup, $47k saved.",
+  generator: "Next.js",
+  openGraph: {
+    title: "Delta-Infinity - GPU Memory Waste Detector",
+    description: "Find and fix GPU memory waste in ML training. Analyze BERT, GPT-2, ResNet models. 2-3x speedup, $47k saved.",
+    type: "website",
+  },
   icons: {
     icon: [
       {
