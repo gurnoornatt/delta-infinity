@@ -1,0 +1,242 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Create Backend Directory Structure",
+        "description": "Set up the Python backend directory with proper structure for the MemoryMark GPU analysis engine",
+        "details": "Create backend/ directory with subdirectories. Initialize Python virtual environment. Create memorymark.py (core analysis engine), app.py (Flask server), requirements.txt, and README.md. Set up proper Python project structure following the PRD specifications.",
+        "testStrategy": "Verify directory structure matches PRD specification. Test that Python virtual environment activates correctly.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create backend directory and virtual environment",
+            "description": "Initialize the backend directory structure and set up Python virtual environment for the MemoryMark project",
+            "dependencies": [],
+            "details": "Create backend/ directory in project root. Initialize Python virtual environment using 'python3 -m venv venv' inside backend directory. Activate virtual environment and verify Python 3.10+ compatibility. Create .gitignore for Python-specific files (__pycache__, *.pyc, venv/, etc.)",
+            "status": "pending",
+            "testStrategy": "Verify directory structure exists. Test virtual environment activation with 'source venv/bin/activate'. Check Python version is 3.10+."
+          },
+          {
+            "id": 2,
+            "title": "Create requirements.txt with PyTorch dependencies",
+            "description": "Define Python dependencies for GPU memory analysis including PyTorch, HuggingFace Transformers, and Flask",
+            "dependencies": [],
+            "details": "Create requirements.txt with exact versions: torch>=2.0.0, transformers>=4.21.0, flask>=2.3.0, flask-cors>=4.0.0, pillow>=9.5.0. Pin versions for reproducibility. Include GPU-specific PyTorch installation instructions as comments. Test installation on clean virtual environment.",
+            "status": "pending",
+            "testStrategy": "Install requirements in virtual environment. Verify torch.cuda.is_available() returns appropriate result. Test import statements for all dependencies."
+          },
+          {
+            "id": 3,
+            "title": "Create memorymark.py core engine skeleton",
+            "description": "Set up the main memory analysis module with function signatures and basic structure for GPU memory testing",
+            "dependencies": [],
+            "details": "Create memorymark.py with core functions: load_model(model_name), create_dummy_batch(model, batch_size), test_batch_size(model, batch_size), find_optimal_batch_size(model_name). Include proper imports for torch, transformers. Add GPU availability checks and memory reset functions. Prepare for forward+backward pass implementation.",
+            "status": "pending",
+            "testStrategy": "Verify all imports work. Test GPU detection. Ensure functions can be called without errors (even if not fully implemented)."
+          },
+          {
+            "id": 4,
+            "title": "Create Flask app.py server skeleton",
+            "description": "Set up Flask API server with endpoint definitions and CORS configuration",
+            "dependencies": [],
+            "details": "Create app.py with Flask application. Define three endpoints: POST /analyze (accept model_name, return analysis results), GET /health (return GPU status), GET /models (return available models list). Configure flask-cors for frontend integration. Add error handling middleware and JSON response formatting. Set up development server configuration.",
+            "status": "pending",
+            "testStrategy": "Start Flask server and verify endpoints respond. Test CORS headers with curl. Verify JSON response format matches frontend expectations."
+          },
+          {
+            "id": 5,
+            "title": "Create backend README.md documentation",
+            "description": "Document the backend setup, API endpoints, and development instructions",
+            "dependencies": [],
+            "details": "Create comprehensive README.md covering: virtual environment setup, dependency installation, GPU requirements, API endpoint documentation with request/response examples, development server startup instructions, troubleshooting common issues (CUDA not available, OOM errors), and testing instructions matching the PRD specifications.",
+            "status": "pending",
+            "testStrategy": "Follow README instructions on fresh environment to verify completeness. Test all documented commands and API examples."
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement Core Memory Analysis Engine",
+        "description": "Build the core memorymark.py module with full training simulation including forward and backward pass",
+        "details": "Implement test_batch_size(), create_dummy_batch(), load_model(), and find_optimal_batch_size() functions. Key requirement: Include loss.backward() for gradient computation to simulate full training loops. Use torch.cuda.max_memory_allocated() for accurate memory measurement. Support BERT, GPT-2, and ResNet-50 models from HuggingFace.",
+        "testStrategy": "Validation test: Forward+backward pass should use 2-3x more memory than forward-only. Test with python memorymark.py bert and verify batch size ~32-40 on 24GB GPU.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Create Flask API Server",
+        "description": "Build Flask API server with endpoints for GPU analysis and health checks",
+        "details": "Implement app.py with three endpoints: POST /analyze (runs memory analysis), GET /health (GPU status), GET /models (available models). Add CORS support with flask-cors. Handle errors gracefully and return proper JSON responses. Set timeout handling for 30-60 second analysis runs.",
+        "testStrategy": "Test endpoints with curl commands. Verify CORS headers allow frontend requests. Test full analysis workflow with all three models.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Flask app.py server structure",
+            "description": "Set up basic Flask application with CORS configuration and error handling framework",
+            "dependencies": [],
+            "details": "Create app.py file in backend/ directory. Initialize Flask app, configure CORS with flask-cors to allow all origins for hackathon purposes. Set up basic error handling structure and JSON response utilities. Configure server to run on 0.0.0.0:5000 for external access.",
+            "status": "pending",
+            "testStrategy": "Test server starts without errors and CORS headers are present in responses"
+          },
+          {
+            "id": 2,
+            "title": "Implement GET /health endpoint",
+            "description": "Create health check endpoint that returns GPU status and system information",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Implement /health endpoint that checks torch.cuda.is_available(), gets GPU device properties (name, memory), and returns JSON response with status, GPU availability, GPU name, total memory in GB, and timestamp. Handle cases where CUDA is not available gracefully.",
+            "status": "pending",
+            "testStrategy": "Test with curl and verify returns proper GPU information or graceful degradation"
+          },
+          {
+            "id": 3,
+            "title": "Implement GET /models endpoint",
+            "description": "Create endpoint that lists available models for analysis",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Implement /models endpoint that returns static list of supported models: bert (BERT Base - 110M parameters), gpt2 (GPT-2 - 117M parameters), resnet (ResNet-50 - 25M parameters). Return as JSON array with id, name, description, and type fields for each model.",
+            "status": "pending",
+            "testStrategy": "Test endpoint returns correct model list in expected JSON format"
+          },
+          {
+            "id": 4,
+            "title": "Implement POST /analyze endpoint structure",
+            "description": "Create analyze endpoint that validates input and calls memorymark analysis",
+            "dependencies": [
+              "3.1"
+            ],
+            "details": "Implement /analyze endpoint that accepts JSON with model_name parameter. Validate model_name is one of ['bert', 'gpt2', 'resnet']. Import and call memorymark.find_optimal_batch_size() function. Handle long-running analysis (30-60 seconds) and return complete results as JSON. Add proper error handling for analysis failures.",
+            "status": "pending",
+            "testStrategy": "Test endpoint validates input correctly and handles timeout scenarios appropriately"
+          },
+          {
+            "id": 5,
+            "title": "Add production configurations and startup",
+            "description": "Configure Flask for production deployment and add startup logging",
+            "dependencies": [
+              "3.2",
+              "3.3",
+              "3.4"
+            ],
+            "details": "Add production configurations: disable debug mode, configure proper host/port binding for Lambda Labs deployment. Add startup logging that displays server URL, health check endpoint, and available routes. Ensure server handles graceful shutdown and maintains stability during long-running analysis tasks.",
+            "status": "pending",
+            "testStrategy": "Test server starts correctly, logs show proper information, and server remains stable during analysis operations"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Replace Frontend Mock Data with Real API Integration",
+        "description": "Update the existing React frontend to call the real Flask backend instead of using mock data",
+        "details": "Create api.js module with analyzeModel(), getHealth(), and getModels() functions. Update page.tsx to use real API calls instead of setTimeout mock. Add proper error handling and loading states. Set API_BASE_URL environment variable for backend connection.",
+        "testStrategy": "Test end-to-end flow: select model, click analyze, verify real backend analysis runs and results display correctly. Test error handling for backend failures.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Add Backward Pass Validation System",
+        "description": "Implement validation testing to ensure backward pass is working correctly",
+        "details": "Add validate_backward_pass() function to verify gradient computation is working. Compare forward-only vs forward+backward memory usage. Expected ratio should be 2-3x. Add this validation to memorymark.py as a debug feature and include in testing workflow.",
+        "testStrategy": "Run validation test and verify ratio is 2-3x. If ratio ~1x, backward pass is not working (critical bug). Document expected outputs for each model.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Setup Lambda Labs GPU Environment",
+        "description": "Configure Lambda Labs A10 GPU instance for backend deployment",
+        "details": "Launch Lambda Labs A10 (24GB) instance with Ubuntu 22.04 + PyTorch. Install dependencies: Python 3.10+, PyTorch 2.0+, transformers, flask, flask-cors. Set up tmux session for persistent server running. Configure SSH access and verify GPU availability with nvidia-smi.",
+        "testStrategy": "Verify GPU available with torch.cuda.is_available(). Test basic model loading and memory measurement. Confirm Flask server starts and accepts connections.",
+        "priority": "medium",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Deploy Backend to Lambda Labs",
+        "description": "Deploy the Flask backend to Lambda Labs GPU instance and test production readiness",
+        "details": "Upload backend code to Lambda Labs instance. Install requirements in virtual environment. Start Flask server on 0.0.0.0:5000 in tmux session. Test all API endpoints remotely. Configure firewall/security groups for port 5000 access.",
+        "testStrategy": "Test remote API calls from local machine. Verify health endpoint returns GPU info. Run full analysis on all three models remotely.",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Configure Frontend for Production Deployment",
+        "description": "Setup frontend for Vercel deployment with proper environment variables",
+        "details": "Set REACT_APP_API_URL environment variable pointing to Lambda Labs instance. Optimize build settings for Vercel. Update package.json scripts if needed. Ensure all API calls handle production URLs correctly. Test build process locally.",
+        "testStrategy": "Run npm run build locally and verify no errors. Test that API_BASE_URL resolves correctly to Lambda Labs IP:5000.",
+        "priority": "medium",
+        "dependencies": [
+          4,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Deploy Frontend to Vercel",
+        "description": "Deploy the React frontend to Vercel with proper configuration",
+        "details": "Push code to GitHub repository. Import project to Vercel. Configure environment variable REACT_APP_API_URL with Lambda Labs backend URL. Deploy and test live site. Verify CORS works between Vercel and Lambda Labs.",
+        "testStrategy": "Test live site at Vercel URL. Verify model selection, analysis workflow, and results display work end-to-end with real GPU backend.",
+        "priority": "medium",
+        "dependencies": [
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Create Demo Materials and Final Testing",
+        "description": "Prepare demo script, validation tests, and final system verification",
+        "details": "Create demo script following PRD guidelines (5-minute presentation). Record backup demo video. Run validation tests on all models. Verify technical accuracy claims (backward pass working, memory ratios correct). Test mobile responsiveness. Prepare emergency backup plans.",
+        "testStrategy": "Complete demo rehearsal. Validate that BERT analysis finds batch_size ~32-40 (not 56). Verify forward+backward uses 2-3x memory of forward-only. Test site on mobile devices.",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-11-08T10:21:53.186Z",
+      "updated": "2025-11-08T10:21:53.186Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
