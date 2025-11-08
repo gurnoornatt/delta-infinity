@@ -1,0 +1,31 @@
+# MemoryMark GPU Memory Analysis Tool
+# Dependencies - November 2025
+# Python 3.10+ required
+
+# NOTE: This project works in two environments:
+# 1. LOCAL (Mac): For development/testing with MPS (Apple Silicon GPU)
+# 2. PRODUCTION (Lambda Labs): NVIDIA A10 with CUDA for real GPU analysis
+
+# Deep Learning Framework
+# For Mac (development): pip install torch torchvision
+# For Lambda Labs (production): pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.6.0                    # PyTorch 2.6.0+ (supports both MPS and CUDA)
+torchvision>=0.21.0             # Computer vision library
+
+# ML Models & NLP
+transformers>=4.50.0            # HuggingFace Transformers
+
+# Web Framework
+Flask>=3.0.0                    # Flask web framework
+flask-cors>=4.0.0               # CORS support for Flask
+
+# Image Processing
+Pillow>=10.0.0                  # Python Imaging Library
+
+# Additional Dependencies (automatically resolved)
+# - werkzeug (Flask dependency)
+# - itsdangerous (Flask dependency)
+# - blinker (Flask dependency)
+# - numpy (PyTorch dependency)
+# - requests (Transformers dependency)
+# - tokenizers (Transformers dependency)

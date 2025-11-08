@@ -9,7 +9,7 @@
         "testStrategy": "Verify directory structure matches PRD specification. Test that Python virtual environment activates correctly.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -17,7 +17,7 @@
             "description": "Initialize the backend directory structure and set up Python virtual environment for the MemoryMark project",
             "dependencies": [],
             "details": "Create backend/ directory in project root. Initialize Python virtual environment using 'python3 -m venv venv' inside backend directory. Activate virtual environment and verify Python 3.10+ compatibility. Create .gitignore for Python-specific files (__pycache__, *.pyc, venv/, etc.)",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify directory structure exists. Test virtual environment activation with 'source venv/bin/activate'. Check Python version is 3.10+."
           },
           {
@@ -26,7 +26,7 @@
             "description": "Define Python dependencies for GPU memory analysis including PyTorch, HuggingFace Transformers, and Flask",
             "dependencies": [],
             "details": "Create requirements.txt with UPDATED November 2025 versions: torch>=2.1.0 (PyTorch 2.x with torch.compile support), transformers>=4.56.0 (latest stable), flask>=3.1.0 (Flask 3.x), flask-cors>=6.0.0 (latest), pillow>=12.0.0 (latest). Pin exact versions for reproducibility. Include GPU-specific PyTorch installation instructions as comments. Recommend Python 3.14 for new projects but maintain 3.10+ minimum compatibility.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Install requirements in virtual environment. Verify torch.cuda.is_available() and torch.compile availability. Test import statements for all dependencies with updated versions."
           },
           {
@@ -35,7 +35,7 @@
             "description": "Set up the main memory analysis module with function signatures and basic structure for GPU memory testing",
             "dependencies": [],
             "details": "Create memorymark.py with core functions: load_model(model_name), create_dummy_batch(model, batch_size), test_batch_size(model, batch_size), find_optimal_batch_size(model_name). Include proper imports for torch, transformers. Add GPU availability checks and memory reset functions. Prepare for forward+backward pass implementation.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify all imports work. Test GPU detection. Ensure functions can be called without errors (even if not fully implemented)."
           },
           {
@@ -44,7 +44,7 @@
             "description": "Set up Flask API server with endpoint definitions and CORS configuration",
             "dependencies": [],
             "details": "Create app.py with Flask application. Define three endpoints: POST /analyze (accept model_name, return analysis results), GET /health (return GPU status), GET /models (return available models list). Configure flask-cors for frontend integration. Add error handling middleware and JSON response formatting. Set up development server configuration.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Start Flask server and verify endpoints respond. Test CORS headers with curl. Verify JSON response format matches frontend expectations."
           },
           {
@@ -53,7 +53,7 @@
             "description": "Document the backend setup, API endpoints, and development instructions",
             "dependencies": [],
             "details": "Create comprehensive README.md covering: virtual environment setup, dependency installation, GPU requirements, API endpoint documentation with request/response examples, development server startup instructions, troubleshooting common issues (CUDA not available, OOM errors), and testing instructions matching the PRD specifications.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Follow README instructions on fresh environment to verify completeness. Test all documented commands and API examples."
           }
         ]
@@ -222,7 +222,7 @@
             "title": "Create lib/api.ts with typed API service functions",
             "description": "Create API service module with functions to call Flask backend endpoints",
             "dependencies": [],
-            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base\u2192bert, gpt-2\u2192gpt2, resnet-50\u2192resnet.",
+            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base→bert, gpt-2→gpt2, resnet-50→resnet.",
             "status": "pending",
             "testStrategy": "Test each API function independently. Mock backend responses. Verify error handling and timeouts work."
           },
@@ -231,7 +231,7 @@
             "title": "Update AnalysisResult interface to match backend response",
             "description": "Ensure frontend TypeScript interfaces match backend JSON response structure",
             "dependencies": [],
-            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (\u2192optimalMemoryUsage), current_memory_gb (\u2192currentMemoryUsage), waste_percent (\u2192wastePercentage), speedup, cost_savings_per_run (\u2192costPerRun), cost_savings_annual (\u2192annualSavings).",
+            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (→optimalMemoryUsage), current_memory_gb (→currentMemoryUsage), waste_percent (→wastePercentage), speedup, cost_savings_per_run (→costPerRun), cost_savings_annual (→annualSavings).",
             "status": "pending",
             "testStrategy": "TypeScript compilation should pass. Test mapping of all fields from backend to frontend."
           },
@@ -552,7 +552,7 @@
             "dependencies": [
               "9.2"
             ],
-            "details": "In Vercel project settings \u2192 Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
+            "details": "In Vercel project settings → Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
             "status": "pending",
             "testStrategy": "Environment variable visible in Vercel dashboard. Correct Lambda Labs IP configured."
           },
@@ -570,7 +570,7 @@
           {
             "id": 5,
             "title": "Test CORS and cross-origin functionality",
-            "description": "Verify Vercel \u2192 Lambda Labs API calls work without CORS issues",
+            "description": "Verify Vercel → Lambda Labs API calls work without CORS issues",
             "dependencies": [
               "9.4"
             ],
@@ -657,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T10:21:53.186Z",
-      "updated": "2025-11-08T12:00:00.000Z",
+      "updated": "2025-11-08T12:50:25.857Z",
       "description": "Tasks for MemoryMark project - Updated for November 2025 with modern dependencies and torch.compile"
     }
   }
