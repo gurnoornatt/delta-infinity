@@ -253,6 +253,74 @@ curl -X POST http://localhost:5001/analyze \
   -d '{"model_name": "bert"}'
 ```
 
+### Backward Pass Validation
+
+**CRITICAL**: This validation ensures MemoryMark is actually simulating full training (forward + backward pass), not just inference. This is what makes MemoryMark accurate.
+
+```bash
+# Run backward pass validation test
+python memorymark.py --validate-backward
+
+# Or test with specific model
+python memorymark.py --validate-backward bert
+python memorymark.py --validate-backward gpt2
+python memorymark.py --validate-backward resnet
+```
+
+**Expected Output (PASS):**
+```
+============================================================
+■ BACKWARD PASS VALIDATION TEST
+============================================================
+Model: bert
+Device: CUDA
+Batch size: 16
+
+This test validates that gradient memory is properly allocated.
+Expected ratio (forward+backward / forward-only): 2.0-3.0x
+============================================================
+
+Loading bert...
+[1/2] Testing FORWARD-ONLY (no backward pass)...
+✓ Forward-only memory: 842 MB
+
+[2/2] Testing FORWARD + BACKWARD (with gradients)...
+✓ Forward+Backward memory: 2156 MB
+
+============================================================
+VALIDATION RESULTS:
+============================================================
+Forward-only memory:        842 MB
+Forward+Backward memory:   2156 MB
+Ratio:                     2.56x
+
+✓ PASS: Ratio 2.56x is within expected range [2.0-3.0x].
+Backward pass is correctly allocating gradient memory.
+============================================================
+```
+
+**What the Ratio Means:**
+- **2.0-3.0x**: PASS - Backward pass is working correctly
+- **1.5-2.0x**: WARNING - Backward pass may be working but with lower overhead
+- **<1.5x**: FAIL - CRITICAL BUG - Backward pass not running!
+- **>3.0x**: WARNING - Higher than expected memory overhead
+
+**Why This Matters:**
+
+Gradient memory accounts for 50-60% of training memory. Tools that only test inference (forward pass) will recommend batch sizes that are 2-3x too large, causing immediate OOM when you try to train.
+
+MemoryMark simulates `loss.backward()` to allocate gradient tensors, ensuring recommendations work in production.
+
+**Troubleshooting:**
+
+If validation fails (ratio < 1.5x):
+1. Check that `loss.backward()` is being called in `test_batch_size()` function
+2. Verify model is not in `eval()` mode when testing
+3. Ensure `torch.no_grad()` is NOT wrapping the backward pass
+4. Test on real GPU (CUDA or MPS) - validation won't work on CPU
+
+**Run this test on Lambda Labs CUDA GPU for most accurate results.**
+
 ## Deployment
 
 ### Lambda Labs GPU

@@ -483,19 +483,244 @@ def validate_compilation_benefit(model_name: str = 'bert', batch_size: int = 16,
     }
 
 
+def validate_backward_pass(model_name: str = 'bert', batch_size: int = 16, device: Optional[str] = None) -> Dict:
+    """
+    Validate that backward pass is correctly allocating gradient memory.
+
+    This is CRITICAL for MemoryMark accuracy. Without proper backward pass simulation,
+    memory estimates are wrong by 2-3x, causing recommendations to fail in production.
+
+    Compares memory usage for:
+    1. Forward-only (no gradients)
+    2. Forward + Backward (with gradients)
+
+    Expected ratio: 2.0-3.0x (backward adds ~50-60% overhead for gradients)
+    If ratio ~1.0x, backward pass is NOT running (CRITICAL BUG)
+
+    Args:
+        model_name: One of ['bert', 'gpt2', 'resnet']
+        batch_size: Batch size to test (default 16)
+        device: Optional device override ('cuda', 'mps', 'cpu'). Auto-detected if None.
+
+    Returns:
+        dict: {
+            'model_name': str,
+            'device': str,
+            'batch_size': int,
+            'forward_only_memory_mb': int,
+            'forward_backward_memory_mb': int,
+            'ratio': float,
+            'expected_ratio_min': float,
+            'expected_ratio_max': float,
+            'status': str ('PASS' or 'FAIL'),
+            'message': str
+        }
+
+    References:
+        - Tensor.backward(): https://docs.pytorch.org/docs/stable/generated/torch.Tensor.backward.html
+        - CUDA Memory: https://docs.pytorch.org/docs/stable/generated/torch.cuda.memory.max_memory_allocated.html
+        - MPS Memory: https://docs.pytorch.org/docs/stable/generated/torch.mps.current_allocated_memory.html
+    """
+    # Auto-detect device if not specified
+    if device is None:
+        device = get_device()
+
+    print("=" * 60)
+    print("■ BACKWARD PASS VALIDATION TEST")
+    print("=" * 60)
+    print(f"Model: {model_name}")
+    print(f"Device: {device.upper()}")
+    print(f"Batch size: {batch_size}")
+    print()
+    print("This test validates that gradient memory is properly allocated.")
+    print("Expected ratio (forward+backward / forward-only): 2.0-3.0x")
+    print("=" * 60)
+
+    # Load model (no compilation for clean test)
+    print(f"\nLoading {model_name}...")
+    model, processor, model_type, _ = load_model(model_name, device, use_compile=False)
+
+    # === TEST 1: FORWARD-ONLY (NO BACKWARD PASS) ===
+    print("\n[1/2] Testing FORWARD-ONLY (no backward pass)...")
+
+    try:
+        # Clear cache and reset stats
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+
+        # Create batch
+        inputs_forward = create_dummy_batch(model_type, batch_size, processor, device)
+
+        # FORWARD PASS ONLY (no loss, no backward)
+        with torch.no_grad():  # Explicitly disable gradient tracking
+            outputs_forward = model(**inputs_forward)
+
+        # Measure memory
+        if device == 'cuda':
+            forward_only_memory_bytes = torch.cuda.max_memory_allocated()
+        elif device == 'mps':
+            forward_only_memory_bytes = torch.mps.current_allocated_memory()
+        else:
+            forward_only_memory_bytes = 0
+
+        forward_only_memory_mb = int(forward_only_memory_bytes / (1024 ** 2))
+
+        print(f"✓ Forward-only memory: {forward_only_memory_mb} MB")
+
+        # Clean up
+        del inputs_forward, outputs_forward
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+        model.zero_grad()
+
+    except Exception as e:
+        print(f"✗ Forward-only test failed: {e}")
+        raise
+
+    # === TEST 2: FORWARD + BACKWARD ===
+    print("\n[2/2] Testing FORWARD + BACKWARD (with gradients)...")
+
+    try:
+        # Clear cache and reset stats
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+
+        # Create batch
+        inputs_backward = create_dummy_batch(model_type, batch_size, processor, device)
+
+        # FORWARD PASS
+        outputs_backward = model(**inputs_backward)
+
+        # CREATE DUMMY LOSS
+        if model_type == 'nlp':
+            if hasattr(outputs_backward, 'logits'):
+                loss = outputs_backward.logits.mean()
+            else:
+                loss = outputs_backward[0].mean()
+        else:  # vision
+            loss = outputs_backward.logits.mean()
+
+        # BACKWARD PASS - THE CRITICAL OPERATION
+        # This should allocate gradient tensors for all model parameters
+        loss.backward()
+
+        # Measure memory
+        if device == 'cuda':
+            forward_backward_memory_bytes = torch.cuda.max_memory_allocated()
+        elif device == 'mps':
+            forward_backward_memory_bytes = torch.mps.current_allocated_memory()
+        else:
+            forward_backward_memory_bytes = 0
+
+        forward_backward_memory_mb = int(forward_backward_memory_bytes / (1024 ** 2))
+
+        print(f"✓ Forward+Backward memory: {forward_backward_memory_mb} MB")
+
+        # Clean up
+        del inputs_backward, outputs_backward, loss
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+        model.zero_grad()
+
+    except Exception as e:
+        print(f"✗ Forward+Backward test failed: {e}")
+        raise
+
+    # === CALCULATE RATIO AND VALIDATE ===
+    print("\n" + "=" * 60)
+    print("VALIDATION RESULTS:")
+    print("=" * 60)
+
+    # Handle edge case: forward_only_memory_mb is 0 (CPU or measurement failed)
+    if forward_only_memory_mb == 0:
+        ratio = 0.0
+        status = "SKIPPED"
+        message = f"Memory measurement not available on {device.upper()}. This test requires CUDA or MPS."
+        print(f"⚠ {message}")
+    else:
+        ratio = forward_backward_memory_mb / forward_only_memory_mb
+
+        print(f"Forward-only memory:     {forward_only_memory_mb:6} MB")
+        print(f"Forward+Backward memory: {forward_backward_memory_mb:6} MB")
+        print(f"Ratio:                   {ratio:.2f}x")
+        print()
+
+        # Validation criteria: ratio should be 2.0-3.0x
+        EXPECTED_MIN = 2.0
+        EXPECTED_MAX = 3.0
+
+        if EXPECTED_MIN <= ratio <= EXPECTED_MAX:
+            status = "PASS"
+            message = f"✓ PASS: Ratio {ratio:.2f}x is within expected range [{EXPECTED_MIN}-{EXPECTED_MAX}x]. Backward pass is correctly allocating gradient memory."
+            print(f"✓ {message}")
+        elif ratio < EXPECTED_MIN:
+            if ratio < 1.5:
+                status = "FAIL"
+                message = f"✗ FAIL: Ratio {ratio:.2f}x is TOO LOW (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). CRITICAL: Backward pass may not be running! Check loss.backward() implementation."
+                print(f"✗ {message}")
+            else:
+                status = "WARN"
+                message = f"⚠ WARNING: Ratio {ratio:.2f}x is slightly low (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). Backward pass may be working but with lower overhead than typical."
+                print(f"⚠ {message}")
+        else:  # ratio > EXPECTED_MAX
+            status = "WARN"
+            message = f"⚠ WARNING: Ratio {ratio:.2f}x is higher than expected (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). This may indicate additional memory overhead."
+            print(f"⚠ {message}")
+
+    print("=" * 60)
+
+    return {
+        'model_name': model_name,
+        'device': device,
+        'batch_size': batch_size,
+        'forward_only_memory_mb': forward_only_memory_mb,
+        'forward_backward_memory_mb': forward_backward_memory_mb,
+        'ratio': round(ratio, 2),
+        'expected_ratio_min': 2.0,
+        'expected_ratio_max': 3.0,
+        'status': status,
+        'message': message
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python memorymark.py <model_name> [device]")
         print("       python memorymark.py --validate [model_name]")
+        print("       python memorymark.py --validate-backward [model_name]")
         print("")
         print("Models: bert, gpt2, resnet")
         print("Device: cuda, mps, cpu (optional, auto-detected)")
         print("")
         print("Examples:")
-        print("  python memorymark.py bert           # Run full analysis on BERT")
-        print("  python memorymark.py --validate     # Validate torch.compile on BERT")
-        print("  python memorymark.py --validate gpt2  # Validate on GPT-2")
+        print("  python memorymark.py bert                 # Run full analysis on BERT")
+        print("  python memorymark.py --validate           # Validate torch.compile on BERT")
+        print("  python memorymark.py --validate gpt2      # Validate torch.compile on GPT-2")
+        print("  python memorymark.py --validate-backward  # Validate backward pass on BERT")
         sys.exit(1)
+
+    # Check for --validate-backward flag
+    if sys.argv[1] == '--validate-backward':
+        model_name = sys.argv[2] if len(sys.argv) > 2 else 'bert'
+        try:
+            results = validate_backward_pass(model_name)
+            # Results are already printed by the function
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
 
     # Check for --validate flag
     if sys.argv[1] == '--validate':
