@@ -146,7 +146,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -154,7 +154,7 @@
             "description": "Set up basic Flask application with CORS configuration and error handling framework",
             "dependencies": [],
             "details": "Create app.py file in backend/ directory. Initialize Flask app, configure CORS with flask-cors to allow all origins for hackathon purposes. Set up basic error handling structure and JSON response utilities. Configure server to run on 0.0.0.0:5000 for external access.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test server starts without errors and CORS headers are present in responses"
           },
           {
@@ -165,7 +165,7 @@
               "3.1"
             ],
             "details": "Implement /health endpoint that checks torch.cuda.is_available(), gets GPU device properties (name, memory), and returns JSON response with status, GPU availability, GPU name, total memory in GB, and timestamp. Handle cases where CUDA is not available gracefully.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test with curl and verify returns proper GPU information or graceful degradation"
           },
           {
@@ -176,7 +176,7 @@
               "3.1"
             ],
             "details": "Implement /models endpoint that returns static list of supported models: bert (BERT Base - 110M parameters), gpt2 (GPT-2 - 117M parameters), resnet (ResNet-50 - 25M parameters). Return as JSON array with id, name, description, and type fields for each model.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test endpoint returns correct model list in expected JSON format"
           },
           {
@@ -187,7 +187,7 @@
               "3.1"
             ],
             "details": "Implement /analyze endpoint that accepts JSON with model_name parameter. Validate model_name is one of ['bert', 'gpt2', 'resnet']. Import and call memorymark.find_optimal_batch_size() function. Handle long-running analysis (30-60 seconds) and return complete results as JSON. Add proper error handling for analysis failures.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test endpoint validates input correctly and handles timeout scenarios appropriately"
           },
           {
@@ -200,7 +200,7 @@
               "3.4"
             ],
             "details": "Add production configurations: disable debug mode, configure proper host/port binding for Lambda Labs deployment. Add startup logging that displays server URL, health check endpoint, and available routes. Ensure server handles graceful shutdown and maintains stability during long-running analysis tasks.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test server starts correctly, logs show proper information, and server remains stable during analysis operations"
           }
         ]
@@ -222,7 +222,7 @@
             "title": "Create lib/api.ts with typed API service functions",
             "description": "Create API service module with functions to call Flask backend endpoints",
             "dependencies": [],
-            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base→bert, gpt-2→gpt2, resnet-50→resnet.",
+            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base\u2192bert, gpt-2\u2192gpt2, resnet-50\u2192resnet.",
             "status": "pending",
             "testStrategy": "Test each API function independently. Mock backend responses. Verify error handling and timeouts work."
           },
@@ -231,7 +231,7 @@
             "title": "Update AnalysisResult interface to match backend response",
             "description": "Ensure frontend TypeScript interfaces match backend JSON response structure",
             "dependencies": [],
-            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (→optimalMemoryUsage), current_memory_gb (→currentMemoryUsage), waste_percent (→wastePercentage), speedup, cost_savings_per_run (→costPerRun), cost_savings_annual (→annualSavings).",
+            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (\u2192optimalMemoryUsage), current_memory_gb (\u2192currentMemoryUsage), waste_percent (\u2192wastePercentage), speedup, cost_savings_per_run (\u2192costPerRun), cost_savings_annual (\u2192annualSavings).",
             "status": "pending",
             "testStrategy": "TypeScript compilation should pass. Test mapping of all fields from backend to frontend."
           },
@@ -552,7 +552,7 @@
             "dependencies": [
               "9.2"
             ],
-            "details": "In Vercel project settings → Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
+            "details": "In Vercel project settings \u2192 Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
             "status": "pending",
             "testStrategy": "Environment variable visible in Vercel dashboard. Correct Lambda Labs IP configured."
           },
@@ -570,7 +570,7 @@
           {
             "id": 5,
             "title": "Test CORS and cross-origin functionality",
-            "description": "Verify Vercel → Lambda Labs API calls work without CORS issues",
+            "description": "Verify Vercel \u2192 Lambda Labs API calls work without CORS issues",
             "dependencies": [
               "9.4"
             ],
@@ -657,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T10:21:53.186Z",
-      "updated": "2025-11-08T12:50:25.857Z",
+      "updated": "2025-11-08T13:58:58.254916Z",
       "description": "Tasks for MemoryMark project - Updated for November 2025 with modern dependencies and torch.compile"
     }
   }
