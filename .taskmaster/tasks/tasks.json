@@ -222,7 +222,7 @@
             "title": "Create lib/api.ts with typed API service functions",
             "description": "Create API service module with functions to call Flask backend endpoints",
             "dependencies": [],
-            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base\u2192bert, gpt-2\u2192gpt2, resnet-50\u2192resnet.",
+            "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base→bert, gpt-2→gpt2, resnet-50→resnet.",
             "status": "done",
             "testStrategy": "Test each API function independently. Mock backend responses. Verify error handling and timeouts work."
           },
@@ -231,7 +231,7 @@
             "title": "Update AnalysisResult interface to match backend response",
             "description": "Ensure frontend TypeScript interfaces match backend JSON response structure",
             "dependencies": [],
-            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (\u2192optimalMemoryUsage), current_memory_gb (\u2192currentMemoryUsage), waste_percent (\u2192wastePercentage), speedup, cost_savings_per_run (\u2192costPerRun), cost_savings_annual (\u2192annualSavings).",
+            "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (→optimalMemoryUsage), current_memory_gb (→currentMemoryUsage), waste_percent (→wastePercentage), speedup, cost_savings_per_run (→costPerRun), cost_savings_annual (→annualSavings).",
             "status": "done",
             "testStrategy": "TypeScript compilation should pass. Test mapping of all fields from backend to frontend."
           },
@@ -279,7 +279,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -287,7 +287,7 @@
             "description": "Create validation function that compares forward-only vs forward+backward memory usage",
             "dependencies": [],
             "details": "Add validate_backward_pass() to memorymark.py. 1) Load BERT model and tokenizer. 2) Test 1: Forward only - create inputs, run model, measure peak memory. 3) Reset peak stats. 4) Test 2: Forward + Backward - create inputs, run model, create loss, call backward(), measure peak memory. 5) Calculate ratio = forward_backward_mb / forward_only_mb. 6) Print results with pass/fail indicator (expect 2-3x ratio).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run validation and verify ratio is 2-3x. If not, backward pass implementation has a bug."
           },
           {
@@ -298,7 +298,7 @@
               "5.1"
             ],
             "details": "Add argparse or simple sys.argv handling for --validate flag. When present, run validate_backward_pass() instead of normal analysis. Usage: python memorymark.py --validate. Print clear results showing memory usage comparison.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test: python memorymark.py --validate. Verify it runs validation and exits."
           },
           {
@@ -309,7 +309,7 @@
               "5.2"
             ],
             "details": "Update backend/README.md with Validation Testing section. Explain what validation tests, why it matters (proves backward pass works), how to run it, what results to expect (2-3x ratio). Include troubleshooting if validation fails.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Follow README instructions to run validation. Verify documentation is clear and complete."
           }
         ]
@@ -552,7 +552,7 @@
             "dependencies": [
               "9.2"
             ],
-            "details": "In Vercel project settings \u2192 Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
+            "details": "In Vercel project settings → Environment Variables. Add: NEXT_PUBLIC_API_URL = http://<LAMBDA_IP>:5000. Ensure it's set for Production, Preview, and Development environments. Save and note that rebuild will be needed for changes to take effect.",
             "status": "pending",
             "testStrategy": "Environment variable visible in Vercel dashboard. Correct Lambda Labs IP configured."
           },
@@ -570,7 +570,7 @@
           {
             "id": 5,
             "title": "Test CORS and cross-origin functionality",
-            "description": "Verify Vercel \u2192 Lambda Labs API calls work without CORS issues",
+            "description": "Verify Vercel → Lambda Labs API calls work without CORS issues",
             "dependencies": [
               "9.4"
             ],
@@ -657,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T10:21:53.186Z",
-      "updated": "2025-11-08T14:24:13.343609Z",
+      "updated": "2025-11-08T23:27:41.038Z",
       "description": "Tasks for MemoryMark project - Updated for November 2025 with modern dependencies and torch.compile"
     }
   }
