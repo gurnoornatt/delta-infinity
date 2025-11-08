@@ -85,9 +85,10 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         inputs = {k: v.to(device) for k, v in inputs.items()}
         return inputs
     else:  # vision
-        # Create dummy images (224x224 RGB)
+        # Create dummy images (224x224 RGB) in [0, 1] range for PIL compatibility
+        # torch.rand creates values in [0, 1) which is required by image processors
         dummy_images = [
-            torch.randn(3, IMAGE_SIZE, IMAGE_SIZE) for _ in range(batch_size)
+            torch.rand(3, IMAGE_SIZE, IMAGE_SIZE) for _ in range(batch_size)
         ]
 
         # Process images
@@ -98,18 +99,22 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         return inputs
 
 
-def load_model(model_name: str, device: str) -> Tuple:
+def load_model(model_name: str, device: str, use_compile: bool = False) -> Tuple:
     """
-    Load a HuggingFace model to specified device.
+    Load a HuggingFace model to specified device with optional PyTorch 2.x compilation.
 
     Args:
         model_name: One of ['bert', 'gpt2', 'resnet']
         device: 'cuda', 'mps', or 'cpu'
+        use_compile: If True, apply torch.compile() for optimized execution (PyTorch 2.0+)
 
     Returns:
-        tuple: (model, processor, model_type)
+        tuple: (model, processor, model_type, is_compiled)
 
-    Reference: https://huggingface.co/docs/transformers/main/en/model_doc/auto
+    References:
+        - HuggingFace AutoModel: https://huggingface.co/docs/transformers/main/en/model_doc/auto
+        - torch.compile: https://docs.pytorch.org/docs/stable/generated/torch.compile.html
+        - torch.compile with transformers: https://huggingface.co/docs/transformers/en/perf_torch_compile
     """
     if model_name not in MODEL_MAP:
         raise ValueError(f"Unknown model: {model_name}. Choose from: {list(MODEL_MAP.keys())}")
@@ -125,14 +130,26 @@ def load_model(model_name: str, device: str) -> Tuple:
         )
         model = model.to(device)
         model.eval()  # Set to eval mode (disables dropout)
-        return (model, tokenizer, 'nlp')
+
+        # Apply torch.compile if requested (PyTorch 2.0+ only)
+        if use_compile:
+            # Use 'reduce-overhead' mode for optimal memory analysis
+            # This reduces Python overhead and is good for repeated inference
+            model = torch.compile(model, mode='reduce-overhead')
+
+        return (model, tokenizer, 'nlp', use_compile)
     else:  # resnet
         # Vision models
         processor = AutoImageProcessor.from_pretrained(hf_model_name)
         model = AutoModelForImageClassification.from_pretrained(hf_model_name)
         model = model.to(device)
         model.eval()
-        return (model, processor, 'vision')
+
+        # Apply torch.compile if requested
+        if use_compile:
+            model = torch.compile(model, mode='reduce-overhead')
+
+        return (model, processor, 'vision', use_compile)
 
 
 def test_batch_size(model, model_type: str, processor, batch_size: int, device: str) -> Dict:
@@ -259,7 +276,7 @@ def find_optimal_batch_size(model_name: str, device: Optional[str] = None) -> Di
 
     # Load model
     print(f"Loading {model_name}...")
-    model, processor, model_type = load_model(model_name, device)
+    model, processor, model_type, is_compiled = load_model(model_name, device, use_compile=False)
 
     # Get device memory info
     if device == 'cuda':
@@ -325,13 +342,178 @@ def find_optimal_batch_size(model_name: str, device: Optional[str] = None) -> Di
     }
 
 
+def validate_compilation_benefit(model_name: str = 'bert', batch_size: int = 16, device: Optional[str] = None) -> Dict:
+    """
+    Validate that torch.compile provides measurable performance improvements.
+
+    Compares eager mode vs compiled mode for the same model and batch size.
+    Measures execution time and memory usage for both.
+
+    Args:
+        model_name: One of ['bert', 'gpt2', 'resnet']
+        batch_size: Batch size to test
+        device: Optional device override ('cuda', 'mps', 'cpu'). Auto-detected if None.
+
+    Returns:
+        dict: {
+            'model_name': str,
+            'device': str,
+            'batch_size': int,
+            'eager_time_ms': float,
+            'eager_memory_mb': int,
+            'compiled_time_ms': float,
+            'compiled_memory_mb': int,
+            'speedup': float,
+            'memory_ratio': float,
+            'recommendation': str
+        }
+
+    Reference: https://docs.pytorch.org/docs/stable/generated/torch.compile.html
+    """
+    import time
+
+    # Auto-detect device if not specified
+    if device is None:
+        device = get_device()
+
+    print(f"Validating torch.compile benefit on {device.upper()}...")
+    print(f"Model: {model_name}, Batch size: {batch_size}")
+    print("=" * 60)
+
+    # Test 1: Eager mode (no compilation)
+    print("\n[1/2] Testing EAGER mode (no compilation)...")
+    model_eager, processor_eager, model_type_eager, _ = load_model(model_name, device, use_compile=False)
+
+    # Warm-up run (doesn't count)
+    inputs_warmup = create_dummy_batch(model_type_eager, batch_size, processor_eager, device)
+    _ = model_eager(**inputs_warmup)
+    del inputs_warmup
+    if device == 'cuda':
+        torch.cuda.synchronize()
+
+    # Timed run
+    if device == 'cuda':
+        torch.cuda.reset_peak_memory_stats()
+
+    start_time = time.perf_counter()
+    inputs_eager = create_dummy_batch(model_type_eager, batch_size, processor_eager, device)
+    outputs_eager = model_eager(**inputs_eager)
+    loss_eager = outputs_eager.logits.mean() if hasattr(outputs_eager, 'logits') else outputs_eager[0].mean()
+    loss_eager.backward()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    end_time = time.perf_counter()
+
+    eager_time_ms = (end_time - start_time) * 1000
+    if device == 'cuda':
+        eager_memory_mb = int(torch.cuda.max_memory_allocated() / (1024 ** 2))
+    else:
+        eager_memory_mb = 0
+
+    print(f"✓ Eager mode: {eager_time_ms:.2f}ms, {eager_memory_mb}MB")
+
+    # Clean up
+    del model_eager, inputs_eager, outputs_eager, loss_eager
+    if device == 'cuda':
+        torch.cuda.empty_cache()
+
+    # Test 2: Compiled mode
+    print("\n[2/2] Testing COMPILED mode (torch.compile)...")
+    model_compiled, processor_compiled, model_type_compiled, _ = load_model(model_name, device, use_compile=True)
+
+    # Warm-up run (compilation happens here - doesn't count for timing)
+    print("  Compiling model (first run)...")
+    inputs_warmup2 = create_dummy_batch(model_type_compiled, batch_size, processor_compiled, device)
+    _ = model_compiled(**inputs_warmup2)
+    del inputs_warmup2
+    if device == 'cuda':
+        torch.cuda.synchronize()
+
+    # Timed run (should be faster after compilation)
+    if device == 'cuda':
+        torch.cuda.reset_peak_memory_stats()
+
+    start_time = time.perf_counter()
+    inputs_compiled = create_dummy_batch(model_type_compiled, batch_size, processor_compiled, device)
+    outputs_compiled = model_compiled(**inputs_compiled)
+    loss_compiled = outputs_compiled.logits.mean() if hasattr(outputs_compiled, 'logits') else outputs_compiled[0].mean()
+    loss_compiled.backward()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    end_time = time.perf_counter()
+
+    compiled_time_ms = (end_time - start_time) * 1000
+    if device == 'cuda':
+        compiled_memory_mb = int(torch.cuda.max_memory_allocated() / (1024 ** 2))
+    else:
+        compiled_memory_mb = 0
+
+    print(f"✓ Compiled mode: {compiled_time_ms:.2f}ms, {compiled_memory_mb}MB")
+
+    # Calculate benefit
+    speedup = eager_time_ms / compiled_time_ms if compiled_time_ms > 0 else 1.0
+    memory_ratio = compiled_memory_mb / eager_memory_mb if eager_memory_mb > 0 else 1.0
+
+    # Recommendation
+    if speedup >= 1.1:
+        recommendation = f"torch.compile provides {speedup:.2f}x speedup - RECOMMENDED"
+    elif speedup >= 1.0:
+        recommendation = f"torch.compile provides marginal benefit ({speedup:.2f}x) - OPTIONAL"
+    else:
+        recommendation = f"torch.compile slower ({speedup:.2f}x) - NOT RECOMMENDED for this workload"
+
+    print("\n" + "=" * 60)
+    print("VALIDATION RESULTS:")
+    print(f"  Speedup: {speedup:.2f}x")
+    print(f"  Memory ratio: {memory_ratio:.2f}x")
+    print(f"  {recommendation}")
+    print("=" * 60)
+
+    return {
+        'model_name': model_name,
+        'device': device,
+        'batch_size': batch_size,
+        'eager_time_ms': round(eager_time_ms, 2),
+        'eager_memory_mb': eager_memory_mb,
+        'compiled_time_ms': round(compiled_time_ms, 2),
+        'compiled_memory_mb': compiled_memory_mb,
+        'speedup': round(speedup, 2),
+        'memory_ratio': round(memory_ratio, 2),
+        'recommendation': recommendation
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python memorymark.py <model_name> [device]")
+        print("       python memorymark.py --validate [model_name]")
+        print("")
         print("Models: bert, gpt2, resnet")
         print("Device: cuda, mps, cpu (optional, auto-detected)")
+        print("")
+        print("Examples:")
+        print("  python memorymark.py bert           # Run full analysis on BERT")
+        print("  python memorymark.py --validate     # Validate torch.compile on BERT")
+        print("  python memorymark.py --validate gpt2  # Validate on GPT-2")
         sys.exit(1)
 
+    # Check for --validate flag
+    if sys.argv[1] == '--validate':
+        model_name = sys.argv[2] if len(sys.argv) > 2 else 'bert'
+        try:
+            print("\n" + "="*60)
+            print("■ TORCH.COMPILE VALIDATION TEST")
+            print("="*60)
+            results = validate_compilation_benefit(model_name)
+            # Results are already printed by the function
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+
+    # Normal analysis mode
     model_name = sys.argv[1]
     device = sys.argv[2] if len(sys.argv) > 2 else None
 
