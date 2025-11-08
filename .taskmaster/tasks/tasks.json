@@ -68,7 +68,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -76,7 +76,7 @@
             "description": "Create function to load BERT, GPT-2, and ResNet models with optional PyTorch 2.x compilation",
             "dependencies": [],
             "details": "Implement load_model(model_name, use_compile=False) that accepts 'bert', 'gpt2', or 'resnet'. Map to HuggingFace model IDs: bert-base-uncased, gpt2, microsoft/resnet-50. Load tokenizer/processor and model. Move model to GPU with .cuda(). Set model to eval mode. MODERN UPDATE: If use_compile=True, apply torch.compile(model, mode='reduce-overhead') for optimized execution. This JIT-compiles the model for faster inference/training. Return (model, processor, model_type, is_compiled) tuple.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test loading each model with and without compilation. Verify model is on GPU. Test that compiled models work correctly. Check memory allocation difference between compiled vs non-compiled."
           },
           {
@@ -87,7 +87,7 @@
               "2.1"
             ],
             "details": "Implement create_dummy_batch(model_type, batch_size, processor). For NLP: create dummy text list, tokenize with max_length=128, return_tensors='pt', move to GPU. For vision: create random tensors (3, 224, 224), process with ImageProcessor, move to GPU. Return dict of inputs ready for model.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test creating batches of different sizes. Verify tensors are on GPU. Check batch dimensions match expected shape."
           },
           {
@@ -98,7 +98,7 @@
               "2.2"
             ],
             "details": "CRITICAL IMPLEMENTATION: 1) Reset peak memory stats with torch.cuda.reset_peak_memory_stats(). 2) Create dummy batch. 3) Forward pass: outputs = model(**inputs). 4) Create dummy loss: loss = outputs.logits.mean(). 5) BACKWARD PASS: loss.backward() - THIS IS KEY. 6) Measure peak memory: torch.cuda.max_memory_allocated(). 7) Clean up: del outputs, loss, inputs; torch.cuda.empty_cache(); model.zero_grad(). 8) Handle OOM errors gracefully. MODERN UPDATE: Support both standard eager mode and torch.compile optimized models. Return dict with batch_size, memory_mb, memory_gb, success, error, is_compiled.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify backward pass runs by checking memory usage is 2-3x forward-only. Test OOM handling with very large batch sizes."
           },
           {
@@ -109,7 +109,7 @@
               "2.3"
             ],
             "details": "Implement find_optimal_batch_size(model_name, test_compiled=True). 1) Load model. 2) Get GPU total memory. 3) Loop starting at batch_size=8, increment by 8. 4) Call test_batch_size() for each in eager mode. 5) If test_compiled=True, reload model with torch.compile and repeat tests. 6) Stop at OOM for each mode. 7) Calculate metrics: optimal (last successful), current (batch=16), waste_gb, waste_percent, speedup. 8) Calculate cost savings (Lambda Labs $0.60/hr). MODERN UPDATE: Return comparison showing performance/memory difference between eager and compiled modes. Return complete analysis dict matching frontend AnalysisResult interface with compilation_benefit field.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run full analysis on all 3 models in both modes. Verify BERT finds batch ~32-40. Compare eager vs compiled memory usage and optimal batch sizes. Document compilation benefits."
           },
           {
@@ -120,7 +120,7 @@
               "2.4"
             ],
             "details": "Add MODEL_MAP constant with bert/gpt2/resnet mappings. Add BATCH_SIZE_START=8, BATCH_SIZE_INCREMENT=8, etc. Add if __name__ == '__main__' block to accept model name from command line. Add proper error messages for invalid models. Add result printing for CLI usage.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test CLI: python memorymark.py bert. Verify error handling for invalid models. Check output formatting."
           },
           {
@@ -131,7 +131,7 @@
               "2.4"
             ],
             "details": "Create validate_compilation_benefit() function to compare eager vs compiled model performance. 1) Load model in both modes. 2) Run same batch size test on both. 3) Measure execution time and memory usage. 4) Calculate speedup and memory efficiency. 5) Print comparison report showing torch.compile benefits (typically 10-30% faster, potentially different memory footprint). This validates PyTorch 2.x optimization is working correctly.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Run validation and verify compiled model shows performance improvement. Document actual speedup percentage for each model type."
           }
         ]
