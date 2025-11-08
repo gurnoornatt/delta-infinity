@@ -8,32 +8,49 @@ import AnalyzeButton from "@/components/analyze-button"
 import LoadingState from "@/components/loading-state"
 import ResultsDisplay from "@/components/results-display"
 import { MODELS, type AnalysisResult } from "@/lib/constants"
+import { analyzeModel, mapBackendToFrontend, APIError } from "@/lib/api"
 
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState(MODELS[0])
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAnalyze = async () => {
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2500))
+    setError(null)
 
-    setResult({
-      currentMemoryUsage: 18.5,
-      optimalMemoryUsage: 12.2,
-      wastePercentage: 34,
-      speedup: 1.24,
-      costPerRun: 0.045,
-      annualSavings: 1240,
-    })
+    try {
+      // Call real Flask backend API
+      const backendData = await analyzeModel(selectedModel.id)
 
-    setIsLoading(false)
+      // Map backend response to frontend interface
+      const frontendResult = mapBackendToFrontend(backendData)
+
+      setResult(frontendResult)
+    } catch (err) {
+      // Handle errors with user-friendly messages
+      if (err instanceof APIError) {
+        if (err.statusCode === 408) {
+          setError("Analysis timeout - GPU analysis took too long. Please try again or contact support.")
+        } else if (err.statusCode === 0) {
+          setError("Cannot connect to backend server. Please ensure the Flask server is running on port 5001.")
+        } else {
+          setError(`Error: ${err.message}`)
+        }
+      } else {
+        setError("An unexpected error occurred. Please try again.")
+      }
+      console.error("Analysis error:", err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleAnalyzeAnother = () => {
     setResult(null)
     setIsLoading(false)
+    setError(null)
   }
 
   return (
@@ -60,6 +77,35 @@ export default function Home() {
 
                 <AnalyzeButton onClick={handleAnalyze} disabled={isLoading} />
               </div>
+
+              {/* Error Display */}
+              {error && (
+                <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-semibold text-red-500">Error</h3>
+                      <p className="mt-1 text-sm text-red-400">{error}</p>
+                      <button
+                        onClick={() => setError(null)}
+                        className="mt-2 text-sm text-red-400 hover:text-red-300 underline"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Loading State */}
               {isLoading && <LoadingState />}

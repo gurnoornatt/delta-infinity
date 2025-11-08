@@ -215,7 +215,7 @@
         "dependencies": [
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -223,7 +223,7 @@
             "description": "Create API service module with functions to call Flask backend endpoints",
             "dependencies": [],
             "details": "Create lib/api.ts. Define API_BASE_URL from env (NEXT_PUBLIC_API_URL) with fallback to localhost:5000. Implement analyzeModel(modelId: string), getHealth(), getModels() functions. Add proper TypeScript types. Handle fetch errors and network failures. Add timeout handling (90 seconds for analysis). Map frontend model IDs to backend IDs: bert-base\u2192bert, gpt-2\u2192gpt2, resnet-50\u2192resnet.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test each API function independently. Mock backend responses. Verify error handling and timeouts work."
           },
           {
@@ -232,7 +232,7 @@
             "description": "Ensure frontend TypeScript interfaces match backend JSON response structure",
             "dependencies": [],
             "details": "Review backend response structure from Flask /analyze endpoint. Update lib/constants.ts AnalysisResult interface if needed. Map backend fields to frontend: optimal_batch_size, optimal_memory_gb (\u2192optimalMemoryUsage), current_memory_gb (\u2192currentMemoryUsage), waste_percent (\u2192wastePercentage), speedup, cost_savings_per_run (\u2192costPerRun), cost_savings_annual (\u2192annualSavings).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "TypeScript compilation should pass. Test mapping of all fields from backend to frontend."
           },
           {
@@ -244,7 +244,7 @@
               "4.2"
             ],
             "details": "In app/page.tsx, import analyzeModel from lib/api. Replace the setTimeout mock (lines 19-29) with: const data = await analyzeModel(selectedModel.id). Map the response to match AnalysisResult interface. Add try/catch for error handling. Show user-friendly error messages. Keep loading state management.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test with backend running: analyze each model and verify real results display. Test with backend down: verify error handling."
           },
           {
@@ -253,7 +253,7 @@
             "description": "Setup environment variables for API URL configuration",
             "dependencies": [],
             "details": "Create .env.local file (add to .gitignore). Add NEXT_PUBLIC_API_URL variable. Create .env.example with placeholder. Document in README how to set API URL for local development vs production. For local: http://localhost:5000. For production: http://<LAMBDA_IP>:5000.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify env var is accessible in browser via process.env.NEXT_PUBLIC_API_URL. Test with different URLs."
           },
           {
@@ -264,7 +264,7 @@
               "4.3"
             ],
             "details": "Add error state to page.tsx. Create error display component or use toast/alert. Handle specific errors: network failure, timeout, backend error, invalid model. Add retry mechanism. Show helpful messages like 'Backend not responding. Is the server running?'. Reset error state when analyzing again.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Test all error scenarios: backend down, timeout, invalid response. Verify user sees clear error messages."
           }
         ]
@@ -657,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T10:21:53.186Z",
-      "updated": "2025-11-08T13:58:58.254916Z",
+      "updated": "2025-11-08T14:24:13.343609Z",
       "description": "Tasks for MemoryMark project - Updated for November 2025 with modern dependencies and torch.compile"
     }
   }
