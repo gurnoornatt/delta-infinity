@@ -72,11 +72,6 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         # Create dummy text inputs
         dummy_texts = ["This is a test sentence for GPU memory analysis."] * batch_size
 
-        # Fix for GPT-2: Set pad_token if not present
-        if processor.pad_token is None:
-            processor.pad_token = processor.eos_token
-            processor.pad_token_id = processor.eos_token_id
-
         # Tokenize
         inputs = processor(
             dummy_texts,
@@ -129,6 +124,12 @@ def load_model(model_name: str, device: str, use_compile: bool = False) -> Tuple
     if model_name in ['bert', 'gpt2']:
         # NLP models
         tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
+
+        # Fix for GPT-2: Set pad_token if not present
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+
         model = AutoModelForSequenceClassification.from_pretrained(
             hf_model_name,
             num_labels=2  # Binary classification for dummy task
