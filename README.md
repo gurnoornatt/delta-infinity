@@ -1,4 +1,4 @@
-# MemoryMark
+# Delta Infinity
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.6.0+-ee4c2c.svg)](https://pytorch.org/)
@@ -10,7 +10,7 @@ GPU memory waste detection tool that finds optimal batch sizes for ML training b
 
 ## What It Does
 
-Most ML practitioners use default batch sizes (e.g., 16) and waste 60-90% of their GPU memory. MemoryMark finds the maximum batch size your GPU can handle by:
+Most ML practitioners use default batch sizes (e.g., 16) and waste 60-90% of their GPU memory. Delta Infinity finds the maximum batch size your GPU can handle by:
 
 1. Loading your model on GPU
 2. Testing incrementing batch sizes (8 → 16 → 24 → 32...)
@@ -18,7 +18,7 @@ Most ML practitioners use default batch sizes (e.g., 16) and waste 60-90% of the
 4. Measuring peak GPU memory usage for each batch size
 5. Finding the optimal batch before OOM (Out of Memory)
 
-**Key Differentiator**: Unlike naive tools that only test inference (forward pass), MemoryMark simulates real training with backward pass. This ensures recommended batch sizes actually work during training.
+**Key Differentiator**: Unlike naive tools that only test inference (forward pass), Delta Infinity simulates real training with backward pass. This ensures recommended batch sizes actually work during training.
 
 ## Proven Results
 
@@ -304,7 +304,7 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for production deployment guide including:
 - Higher GPU costs
 - Longer time to results
 
-**The Solution**: MemoryMark finds the optimal batch size in 30-60 seconds, providing:
+**The Solution**: Delta Infinity finds the optimal batch size in 30-60 seconds, providing:
 - Faster training (10-18x speedup)
 - Lower costs ($100-113/year savings per model)
 - Better GPU utilization (90%+ efficiency)

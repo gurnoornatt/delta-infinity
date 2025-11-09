@@ -1,5 +1,5 @@
 /**
- * Terminal Simulator - Generates realistic terminal logs for MemoryMark analysis
+ * Terminal Simulator - Generates realistic terminal logs for Delta Infinity analysis
  *
  * Simulates the actual backend output when running:
  * $ python memorymark.py <model>
@@ -66,7 +66,7 @@ export function generateTerminalLogs(modelId: string, modelName: string): Termin
 
   // Header
   logs.push({
-    text: '🔧 MemoryMark - GPU Memory Optimizer',
+    text: '🔧 Delta Infinity - GPU Memory Optimizer',
     type: 'header',
     delay: 200
   })

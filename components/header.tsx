@@ -7,7 +7,7 @@ export default function Header() {
         <div className="flex items-center gap-3">
           <div className="text-2xl text-accent">■</div>
           <div>
-            <h1 className="text-2xl tracking-tight">MemoryMark</h1>
+            <h1 className="text-2xl tracking-tight">Delta Infinity</h1>
             <p className="text-sm text-muted-foreground">GPU Memory Waste Detector</p>
           </div>
         </div>
