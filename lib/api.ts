@@ -330,6 +330,7 @@ export function mapBackendToFrontend(backendData: BackendAnalysisData) {
     optimalMemoryUsage: backendData.optimal_memory_gb,
     currentMemoryUsage: backendData.current_memory_gb,
     wasteGb: backendData.waste_gb,
+    gpuMemoryTotal: backendData.gpu_total_gb,
     wastePercentage: backendData.waste_percent,
     speedup: backendData.speedup,
     costPerRun: backendData.cost_savings_per_run,

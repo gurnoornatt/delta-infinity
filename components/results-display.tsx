@@ -1,9 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip } from "@/components/ui/tooltip"
 import MemoryGauge from "@/components/memory-gauge"
 import MemoryChart from "@/components/memory-chart"
 import type { AnalysisResult, Model } from "@/lib/constants"
+import { HelpCircle } from "lucide-react"
 
 interface ResultsDisplayProps {
   result: AnalysisResult
@@ -38,59 +40,139 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
         <p className="text-sm text-muted-foreground">{model.name} • NVIDIA A10 - 24GB</p>
       </div>
 
+      {/* Explanatory Summary */}
+      <div className="relative group">
+        <div className="absolute inset-0 bg-gradient-to-r from-accent/20 to-accent/10 rounded-lg blur opacity-50"></div>
+        <div className="relative bg-card/80 backdrop-blur-md border border-accent/30 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+              <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                You're wasting {result.wastePercentage.toFixed(1)}% of your GPU memory
+              </h3>
+              <p className="text-sm text-muted-foreground mb-3">
+                Your current batch size ({result.currentBatchSize}) uses only {result.currentMemoryUsage.toFixed(1)} GB of {result.gpuMemoryTotal} GB available.
+                By increasing to batch size {result.optimalBatchSize}, you could achieve {result.speedup}x faster training with {(100 - result.wastePercentage).toFixed(1)}% GPU efficiency.
+              </p>
+              <div className="flex items-center gap-2 text-xs text-accent">
+                <span className="font-mono">💰 Annual Savings: ${result.annualSavings}</span>
+                <span className="text-muted-foreground">•</span>
+                <span className="font-mono">⚡ {result.speedup}x Speedup</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Key Metrics Gauges */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Current Memory - Your Setup */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 to-red-500/5 rounded-lg blur opacity-50 group-hover:opacity-75 transition duration-500"></div>
           <div className="relative bg-card border border-border/30 rounded-lg backdrop-blur-md">
-            <MemoryGauge
-              label="Current Memory"
-              value={result.currentMemoryUsage}
-              maxValue={24}
-              color="red"
-              unit=" GB"
-            />
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">Your Setup</span>
+                <Tooltip content={`Memory used with your current batch size (${result.currentBatchSize}). This is what you're using now before optimization.`}>
+                  <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-accent transition-colors" />
+                </Tooltip>
+              </div>
+              <MemoryGauge
+                label={`Batch ${result.currentBatchSize}`}
+                value={result.currentMemoryUsage}
+                maxValue={24}
+                color="red"
+                unit=" GB"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Optimal Memory - Recommended Setup */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-accent/10 to-accent/5 rounded-lg blur opacity-50 group-hover:opacity-75 transition duration-500"></div>
           <div className="relative bg-card border border-border/30 rounded-lg backdrop-blur-md">
-            <MemoryGauge
-              label="Optimal Memory"
-              value={result.optimalMemoryUsage}
-              maxValue={24}
-              color="green"
-              unit=" GB"
-            />
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">Recommended</span>
+                <Tooltip content={`Memory used with optimal batch size (${result.optimalBatchSize}). This maximizes GPU utilization for ${result.speedup}x faster training.`}>
+                  <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-accent transition-colors" />
+                </Tooltip>
+              </div>
+              <MemoryGauge
+                label={`Batch ${result.optimalBatchSize}`}
+                value={result.optimalMemoryUsage}
+                maxValue={24}
+                color="green"
+                unit=" GB"
+              />
+            </div>
           </div>
         </div>
 
+        {/* Memory Waste */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 to-red-500/5 rounded-lg blur opacity-50 group-hover:opacity-75 transition duration-500"></div>
           <div className="relative bg-card border border-border/30 rounded-lg backdrop-blur-md">
-            <MemoryGauge label="Memory Waste" value={result.wastePercentage} maxValue={100} color="red" unit="%" />
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">GPU Waste</span>
+                <Tooltip content="Percentage of GPU memory currently being wasted. Lower is better - it means you're using more of your available GPU.">
+                  <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-accent transition-colors" />
+                </Tooltip>
+              </div>
+              <MemoryGauge label="Wasted" value={result.wastePercentage} maxValue={100} color="red" unit="%" />
+            </div>
           </div>
         </div>
 
+        {/* Efficiency Gain */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-accent/10 to-accent/5 rounded-lg blur opacity-50 group-hover:opacity-75 transition duration-500"></div>
           <div className="relative bg-card border border-border/30 rounded-lg backdrop-blur-md">
-            <MemoryGauge
-              label="Efficiency Gain"
-              value={100 - result.wastePercentage}
-              maxValue={100}
-              color="green"
-              unit="%"
-            />
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">GPU Efficiency</span>
+                <Tooltip content="Percentage of GPU memory that will be utilized with the optimal batch size. Higher is better - aiming for 90%+.">
+                  <HelpCircle className="w-3 h-3 text-muted-foreground/50 hover:text-accent transition-colors" />
+                </Tooltip>
+              </div>
+              <MemoryGauge
+                label="Utilized"
+                value={100 - result.wastePercentage}
+                maxValue={100}
+                color="green"
+                unit="%"
+              />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Memory Usage Over Time */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <MemoryChart title="Current Memory Usage" data={memoryOverTime} color="red" />
-        <MemoryChart title="Optimal Memory Usage" data={optimalOverTime} color="green" />
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-medium text-muted-foreground">Your Current Setup (Batch {result.currentBatchSize})</h3>
+            <Tooltip content={`Memory usage with your current batch size of ${result.currentBatchSize}. This shows the baseline memory consumption before optimization.`}>
+              <HelpCircle className="w-4 h-4 text-muted-foreground/50 hover:text-accent transition-colors" />
+            </Tooltip>
+          </div>
+          <MemoryChart title="" data={memoryOverTime} color="red" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-medium text-muted-foreground">Memory Progression to Optimal (Batch {result.optimalBatchSize})</h3>
+            <Tooltip content={`How memory usage scales as batch size increases from ${result.currentBatchSize} to the optimal ${result.optimalBatchSize}. Shows real GPU measurements from testing.`}>
+              <HelpCircle className="w-4 h-4 text-muted-foreground/50 hover:text-accent transition-colors" />
+            </Tooltip>
+          </div>
+          <MemoryChart title="" data={optimalOverTime} color="green" />
+        </div>
       </div>
 
       {/* Performance Stats */}

@@ -27,6 +27,7 @@ export interface AnalysisResult {
   optimalMemoryUsage: number         // optimal_memory_gb - memory at optimal batch
   currentMemoryUsage: number         // current_memory_gb - memory at current batch
   wasteGb: number                    // waste_gb - absolute waste in GB
+  gpuMemoryTotal: number             // gpu_total_gb - total GPU memory available
 
   // Percentage and performance metrics
   wastePercentage: number            // waste_percent - percentage of GPU wasted
