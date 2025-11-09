@@ -72,14 +72,37 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         # Create dummy text inputs
         dummy_texts = ["This is a test sentence for GPU memory analysis."] * batch_size
 
+        print(f"[DEBUG create_dummy_batch] Creating batch of {batch_size} samples")
+        print(f"[DEBUG create_dummy_batch] Processor type: {type(processor).__name__}")
+        print(f"[DEBUG create_dummy_batch] BEFORE check - pad_token: {repr(getattr(processor, 'pad_token', 'ATTR_MISSING'))}")
+        print(f"[DEBUG create_dummy_batch] BEFORE check - pad_token_id: {repr(getattr(processor, 'pad_token_id', 'ATTR_MISSING'))}")
+
+        # Defensive check: Ensure pad_token is set (critical for GPT-2)
+        if not hasattr(processor, 'pad_token') or processor.pad_token is None:
+            print(f"[DEBUG create_dummy_batch] pad_token is None or missing, setting to eos_token")
+            processor.pad_token = processor.eos_token
+            if hasattr(processor, 'pad_token_id'):
+                processor.pad_token_id = processor.eos_token_id
+            print(f"[DEBUG create_dummy_batch] AFTER fix - pad_token: {repr(processor.pad_token)}")
+            print(f"[DEBUG create_dummy_batch] AFTER fix - pad_token_id: {repr(processor.pad_token_id)}")
+        else:
+            print(f"[DEBUG create_dummy_batch] pad_token already set: {repr(processor.pad_token)}")
+
         # Tokenize
-        inputs = processor(
-            dummy_texts,
-            padding='max_length',
-            max_length=MAX_SEQUENCE_LENGTH,
-            truncation=True,
-            return_tensors='pt'
-        )
+        print(f"[DEBUG create_dummy_batch] About to call tokenizer with padding='max_length', max_length={MAX_SEQUENCE_LENGTH}")
+        try:
+            inputs = processor(
+                dummy_texts,
+                padding='max_length',
+                max_length=MAX_SEQUENCE_LENGTH,
+                truncation=True,
+                return_tensors='pt'
+            )
+            print(f"[DEBUG create_dummy_batch] Tokenization successful! Input keys: {inputs.keys()}")
+        except Exception as e:
+            print(f"[DEBUG create_dummy_batch] ERROR during tokenization: {e}")
+            print(f"[DEBUG create_dummy_batch] Exception type: {type(e).__name__}")
+            raise
 
         # Move to device
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -123,12 +146,24 @@ def load_model(model_name: str, device: str, use_compile: bool = False) -> Tuple
 
     if model_name in ['bert', 'gpt2']:
         # NLP models
+        print(f"[DEBUG load_model] Loading tokenizer for {model_name} from {hf_model_name}")
         tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
+
+        print(f"[DEBUG load_model] Tokenizer loaded. Type: {type(tokenizer).__name__}")
+        print(f"[DEBUG load_model] Initial pad_token: {repr(tokenizer.pad_token)}")
+        print(f"[DEBUG load_model] Initial pad_token_id: {repr(tokenizer.pad_token_id)}")
+        print(f"[DEBUG load_model] eos_token: {repr(tokenizer.eos_token)}")
+        print(f"[DEBUG load_model] eos_token_id: {repr(tokenizer.eos_token_id)}")
 
         # Fix for GPT-2: Set pad_token if not present
         if tokenizer.pad_token is None:
+            print(f"[DEBUG load_model] pad_token is None, setting to eos_token")
             tokenizer.pad_token = tokenizer.eos_token
             tokenizer.pad_token_id = tokenizer.eos_token_id
+            print(f"[DEBUG load_model] After setting - pad_token: {repr(tokenizer.pad_token)}")
+            print(f"[DEBUG load_model] After setting - pad_token_id: {repr(tokenizer.pad_token_id)}")
+        else:
+            print(f"[DEBUG load_model] pad_token already set: {repr(tokenizer.pad_token)}")
 
         model = AutoModelForSequenceClassification.from_pretrained(
             hf_model_name,
