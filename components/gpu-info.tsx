@@ -10,11 +10,11 @@ export default function GPUInfo() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">GPU Type</p>
-              <p className="text-lg text-accent">NVIDIA A10</p>
+              <p className="text-lg text-accent">NVIDIA A100</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Memory</p>
-              <p className="text-lg text-accent">24 GB</p>
+              <p className="text-lg text-accent">40 GB</p>
             </div>
           </div>
         </div>

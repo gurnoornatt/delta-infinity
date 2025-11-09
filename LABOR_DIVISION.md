@@ -157,7 +157,7 @@ NEXT_PUBLIC_API_URL=http://your-lambda-labs-ip:5000
 **Instructions (8.2):**
 1. Open file: `app/layout.tsx`
 2. Find line with `title:`
-3. Replace with: `title: 'MemoryMark - GPU Memory Waste Detector'`
+3. Replace with: `title: 'Delta-Infinity - GPU Memory Waste Detector'`
 4. Find line with `description:`
 5. Replace with: `description: 'Find and fix GPU memory waste in ML training. Analyze BERT, GPT-2, ResNet models. 2-3x speedup, $47k saved.'`
 6. Save file

@@ -1,54 +1,18 @@
-# Delta-Infinity - GPU Memory Waste Detector
+# Delta-Infinity Deployment Guide
 
-Delta-Infinity is a GPU memory analysis tool that identifies waste in machine learning training configurations by simulating full training loops (forward + backward pass) to find optimal batch sizes that maximize GPU utilization.
-
-## Project Overview
-
-This project consists of:
-- **Frontend**: Next.js React application deployed on Vercel
-- **Backend**: Flask API server with GPU analysis engine deployed on Lambda Labs
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Python 3.10+ (for backend)
+## Prerequisites
+- Vercel account
+- Lambda Labs account
 - GitHub account
-- Vercel account (free tier works)
-- Lambda Labs account (for GPU backend)
 
-### Local Development
+## Environment Variables
+- `NEXT_PUBLIC_API_URL`: Points to Lambda Labs backend
 
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
+## Deployment Steps
 
-2. **Set up environment variables:**
-   Create a `.env.local` file in the project root:
-   ```bash
-   NEXT_PUBLIC_API_URL=http://localhost:5000
-   ```
+### 1. Backend Deployment (Lambda Labs)
 
-3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open [http://localhost:3000](http://localhost:3000)** in your browser
-
-5. **Start the backend server** (see `backend/README.md` for details):
-   ```bash
-   cd backend
-   python app.py
-   ```
-
-## Deployment Guide
-
-### Step 1: Backend Deployment (Lambda Labs)
-
-#### 1.1 Launch Lambda Labs GPU Instance
+#### Launch Lambda Labs GPU Instance
 
 1. Go to [lambdalabs.com/service/gpu-cloud](https://lambdalabs.com/service/gpu-cloud)
 2. Sign up or sign in
@@ -60,7 +24,7 @@ This project consists of:
 8. Click "Launch" and wait 2-3 minutes
 9. **Note the public IP address** - you'll need this later
 
-#### 1.2 Setup Backend on Lambda Labs
+#### Setup Backend on Lambda Labs
 
 SSH into your Lambda Labs instance:
 ```bash
@@ -87,7 +51,7 @@ cd <project-name>/backend
 
 # Option 2: Upload via SCP from local machine
 # From your local machine:
-# scp -r backend/ ubuntu@<LAMBDA_IP>:/home/ubuntu/memorymark/
+# scp -r backend/ ubuntu@<LAMBDA_IP>:/home/ubuntu/delta-infinity/
 ```
 
 Setup Python environment:
@@ -104,7 +68,7 @@ python memorymark.py bert
 # Should output analysis results
 ```
 
-#### 1.3 Start Flask Server in tmux
+#### Start Flask Server in tmux
 
 Start a persistent tmux session:
 ```bash
@@ -120,7 +84,7 @@ The server will continue running even after you disconnect. To reattach later:
 tmux attach -t memorymark
 ```
 
-#### 1.4 Test Backend API
+#### Test Backend API
 
 From your local machine, test the API:
 ```bash
@@ -133,15 +97,15 @@ curl -X POST http://<LAMBDA_IP>:5000/analyze \
   -d '{"model_name": "bert"}'
 ```
 
-#### 1.5 Configure Firewall
+#### Configure Firewall
 
 Ensure Lambda Labs firewall allows port 5000:
 - Check Lambda Labs dashboard → Instance → Firewall settings
 - Add rule: Allow TCP port 5000 from 0.0.0.0/0 (or specific IPs for security)
 
-### Step 2: Frontend Deployment (Vercel)
+### 2. Frontend Deployment (Vercel)
 
-#### 2.1 Prepare GitHub Repository
+#### Prepare GitHub Repository
 
 1. Initialize git (if not already):
    ```bash
@@ -156,7 +120,7 @@ Ensure Lambda Labs firewall allows port 5000:
    git push -u origin main
    ```
 
-#### 2.2 Deploy to Vercel
+#### Deploy to Vercel
 
 1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
 2. Click "New Project"
@@ -168,7 +132,7 @@ Ensure Lambda Labs firewall allows port 5000:
    - **Build Command**: `npm run build` (default)
    - **Output Directory**: `.next` (default)
 
-#### 2.3 Configure Environment Variables
+#### Configure Environment Variables
 
 In Vercel project settings → Environment Variables:
 
@@ -179,7 +143,7 @@ In Vercel project settings → Environment Variables:
 
 2. Save and redeploy (Vercel will automatically rebuild)
 
-#### 2.4 Verify Deployment
+#### Verify Deployment
 
 1. Visit your Vercel deployment URL: `https://<project-name>.vercel.app`
 2. Test the complete workflow:
@@ -188,7 +152,7 @@ In Vercel project settings → Environment Variables:
    - Wait for results (30-60 seconds)
    - Verify results display correctly
 
-### Step 3: Connect Frontend to Backend
+### 3. Connect Frontend to Backend
 
 The frontend automatically connects to the backend using the `NEXT_PUBLIC_API_URL` environment variable.
 
@@ -198,7 +162,7 @@ The frontend automatically connects to the backend using the `NEXT_PUBLIC_API_UR
 **Production:**
 - Set `NEXT_PUBLIC_API_URL=http://<LAMBDA_IP>:5000` in Vercel environment variables
 
-### Updating API URL When Lambda IP Changes
+### 4. Updating API URL When Lambda IP Changes
 
 Lambda Labs IP addresses change when instances are restarted. To update:
 
@@ -215,130 +179,36 @@ Lambda Labs IP addresses change when instances are restarted. To update:
    - Test health endpoint: `curl http://<NEW_IP>:5000/health`
    - Test from live site after redeploy completes
 
-## Environment Variables
-
-### Frontend (.env.local)
-
-```bash
-# Local development
-NEXT_PUBLIC_API_URL=http://localhost:5000
-
-# Production (set in Vercel)
-NEXT_PUBLIC_API_URL=http://<LAMBDA_IP>:5000
-```
-
-### Backend
-
-Backend uses Flask default configuration. No environment variables required, but ensure:
-- Flask server runs on `0.0.0.0:5000` (not `127.0.0.1`) for external access
-- CORS is configured to allow Vercel domain (or all origins)
-
 ## Troubleshooting
 
-### Backend Issues
+### If API doesn't work: Check Lambda Labs instance is running
 
-**Problem: Cannot connect to backend from Vercel**
-- Check Lambda Labs firewall allows port 5000
 - Verify Flask is running: `tmux attach -t memorymark`
 - Test health endpoint: `curl http://<IP>:5000/health`
-- Check Flask is bound to `0.0.0.0`, not `127.0.0.1`
+- Check Lambda Labs dashboard to ensure instance is active
+- Verify GPU is available: `nvidia-smi` (from SSH session)
 
-**Problem: CORS errors in browser**
+### If CORS errors: Update backend CORS configuration
+
 - Update `backend/app.py` CORS configuration to allow Vercel domain
 - Or use `CORS(app)` to allow all origins (for development)
+- Check browser console for specific CORS error messages
+- Verify `Access-Control-Allow-Origin` header is present in API responses
 
-**Problem: Analysis times out**
-- Analysis takes 30-60 seconds - this is normal
-- Check Lambda Labs instance is running
-- Verify GPU is available: `nvidia-smi`
+### Other Common Issues
 
-### Frontend Issues
+**Backend Issues:**
+- **Cannot connect to backend from Vercel**: Check Lambda Labs firewall allows port 5000, verify Flask is bound to `0.0.0.0`, not `127.0.0.1`
+- **Analysis times out**: Analysis takes 30-60 seconds - this is normal. Check Lambda Labs instance is running and GPU is available
 
-**Problem: Build fails on Vercel**
-- Check Node.js version (should be 18+)
-- Verify all dependencies in `package.json`
-- Check build logs in Vercel dashboard
+**Frontend Issues:**
+- **Build fails on Vercel**: Check Node.js version (should be 18+), verify all dependencies in `package.json`, check build logs in Vercel dashboard
+- **API calls fail**: Verify `NEXT_PUBLIC_API_URL` is set correctly in Vercel, check browser console for CORS or network errors, test backend directly with curl
+- **Environment variable not working**: Ensure variable name starts with `NEXT_PUBLIC_` for client-side access, redeploy after changing environment variables, clear browser cache
 
-**Problem: API calls fail**
-- Verify `NEXT_PUBLIC_API_URL` is set correctly in Vercel
-- Check browser console for CORS or network errors
-- Test backend directly with curl
-
-**Problem: Environment variable not working**
-- Ensure variable name starts with `NEXT_PUBLIC_` for client-side access
-- Redeploy after changing environment variables
-- Clear browser cache
-
-### Lambda Labs Issues
-
-**Problem: Instance stopped**
-- Lambda Labs instances stop after inactivity
-- Restart from dashboard
-- Note: IP address may change after restart
-
-**Problem: Cannot SSH into instance**
-- Check SSH key is added to Lambda Labs account
-- Verify instance is running (not stopped)
-- Try password authentication if SSH key fails
-
-## API Endpoints
-
-### GET /health
-Returns GPU status and system information.
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "gpu_available": true,
-  "gpu_name": "NVIDIA A10",
-  "total_memory_gb": 24.0
-}
-```
-
-### GET /models
-Returns list of available models for analysis.
-
-**Response:**
-```json
-{
-  "models": [
-    {
-      "id": "bert",
-      "name": "BERT Base",
-      "description": "110M parameters",
-      "type": "nlp"
-    }
-  ]
-}
-```
-
-### POST /analyze
-Runs GPU memory analysis on a specified model.
-
-**Request:**
-```json
-{
-  "model_name": "bert"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "model_name": "bert",
-    "optimal_batch_size": 32,
-    "optimal_memory_gb": 12.2,
-    "current_memory_gb": 18.5,
-    "waste_percent": 34,
-    "speedup": 1.24,
-    "cost_savings_per_run": 0.045,
-    "cost_savings_annual": 1240
-  }
-}
-```
+**Lambda Labs Issues:**
+- **Instance stopped**: Lambda Labs instances stop after inactivity. Restart from dashboard. Note: IP address may change after restart
+- **Cannot SSH into instance**: Check SSH key is added to Lambda Labs account, verify instance is running (not stopped), try password authentication if SSH key fails
 
 ## Production Checklist
 
@@ -361,3 +231,4 @@ Before going live, verify:
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Vercel Deployment Guide](https://vercel.com/docs)
 - [Lambda Labs Documentation](https://lambdalabs.com/service/gpu-cloud)
+

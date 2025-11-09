@@ -8,10 +8,11 @@ export interface Model {
 export interface AnalysisResult {
   currentMemoryUsage: number
   optimalMemoryUsage: number
-  wastePercentage: number
+  memorySaved: number
+  gpuUtilization: number
+  currentBatchSize: number
+  optimalBatchSize: number
   speedup: number
-  costPerRun: number
-  annualSavings: number
 }
 
 export const MODELS: Model[] = [
