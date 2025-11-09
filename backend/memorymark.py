@@ -169,6 +169,13 @@ def load_model(model_name: str, device: str, use_compile: bool = False) -> Tuple
             hf_model_name,
             num_labels=2  # Binary classification for dummy task
         )
+
+        # CRITICAL FIX: Set model's config.pad_token_id (not just tokenizer's)
+        # GPT-2 model checks model.config.pad_token_id in forward() for batch processing
+        if model.config.pad_token_id is None:
+            model.config.pad_token_id = tokenizer.pad_token_id
+            print(f"[DEBUG load_model] Set model.config.pad_token_id to {model.config.pad_token_id}")
+
         model = model.to(device)
         model.eval()  # Set to eval mode (disables dropout)
 
