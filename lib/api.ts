@@ -52,6 +52,14 @@ interface BackendModelsResponse {
   models: BackendModel[]
 }
 
+interface BatchResult {
+  batch_size: number
+  memory_mb: number
+  memory_gb: number
+  success: boolean
+  error: string | null
+}
+
 interface BackendAnalysisData {
   model_name: string
   device: string
@@ -65,6 +73,7 @@ interface BackendAnalysisData {
   speedup: number
   cost_savings_per_run: number
   cost_savings_annual: number
+  results: BatchResult[]
 }
 
 interface BackendAnalysisResponse {
@@ -324,6 +333,13 @@ export function mapBackendToFrontend(backendData: BackendAnalysisData) {
     wastePercentage: backendData.waste_percent,
     speedup: backendData.speedup,
     costPerRun: backendData.cost_savings_per_run,
-    annualSavings: backendData.cost_savings_annual
+    annualSavings: backendData.cost_savings_annual,
+    results: backendData.results.map(r => ({
+      batchSize: r.batch_size,
+      memoryMb: r.memory_mb,
+      memoryGb: r.memory_gb,
+      success: r.success,
+      error: r.error
+    }))
   }
 }

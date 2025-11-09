@@ -12,19 +12,23 @@ interface ResultsDisplayProps {
 }
 
 export default function ResultsDisplay({ result, model, onAnalyzeAnother }: ResultsDisplayProps) {
-  const memoryOverTime = [
-    { time: "21:42", value: 18 },
-    { time: "21:43", value: 18.5 },
-    { time: "21:44", value: 18.2 },
-    { time: "21:45", value: 18.5 },
-  ]
+  // Generate chart data from actual backend results
+  // Sample every 4th batch size for cleaner visualization (or take last 8 data points)
+  const allResults = result.results || []
+  const sampledResults = allResults.filter((_, idx) => idx % 4 === 0 || idx === allResults.length - 1).slice(-8)
 
-  const optimalOverTime = [
-    { time: "21:42", value: 12 },
-    { time: "21:43", value: 12.2 },
-    { time: "21:44", value: 12.1 },
-    { time: "21:45", value: 12.2 },
-  ]
+  // Current memory usage - show the baseline (current batch size usage)
+  const currentBatchMemory = result.currentMemoryUsage
+  const memoryOverTime = sampledResults.map((r, idx) => ({
+    time: `Batch ${r.batchSize}`,
+    value: currentBatchMemory
+  }))
+
+  // Optimal memory usage - show the progression toward optimal
+  const optimalOverTime = sampledResults.map((r) => ({
+    time: `Batch ${r.batchSize}`,
+    value: r.memoryGb
+  }))
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">

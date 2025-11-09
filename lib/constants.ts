@@ -5,6 +5,14 @@ export interface Model {
   params: string
 }
 
+export interface BatchTestResult {
+  batchSize: number
+  memoryMb: number
+  memoryGb: number
+  success: boolean
+  error: string | null
+}
+
 /**
  * Analysis Result Interface
  * Maps backend response from Flask /analyze endpoint
@@ -27,6 +35,9 @@ export interface AnalysisResult {
   // Cost savings metrics
   costPerRun: number                 // cost_savings_per_run - savings per training run
   annualSavings: number              // cost_savings_annual - yearly savings
+
+  // Raw test results array
+  results: BatchTestResult[]         // results - all batch size test results
 }
 
 export const MODELS: Model[] = [

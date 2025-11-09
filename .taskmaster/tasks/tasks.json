@@ -324,7 +324,7 @@
         "dependencies": [
           3
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -332,7 +332,7 @@
             "description": "Create and configure Lambda Labs GPU instance",
             "dependencies": [],
             "details": "Go to lambdalabs.com/service/gpu-cloud. Select 1x A10 (24GB) GPU at $0.60/hr. Choose Ubuntu 22.04 LTS with PyTorch preset. Configure SSH keys or password. Launch instance and note public IP address. Wait for instance to be ready (~2-3 minutes).",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Successfully SSH into instance. Run nvidia-smi and verify A10 GPU with 24GB is shown."
           },
           {
@@ -343,7 +343,7 @@
               "6.1"
             ],
             "details": "SSH into instance. Run: sudo apt update && sudo apt install -y python3-pip git tmux. Verify Python 3.10+: python3 --version. Verify CUDA available: python3 -c 'import torch; print(torch.cuda.is_available())' should print True.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "All installations complete without errors. Python and CUDA verification commands succeed."
           },
           {
@@ -354,7 +354,7 @@
               "6.2"
             ],
             "details": "Option 1: Push code to GitHub, then git clone on Lambda. Option 2: Use scp to upload backend/ directory. Create ~/memorymark directory. Transfer memorymark.py, app.py, requirements.txt, README.md. Verify all files are present.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "All backend files present on Lambda instance. Directory structure matches local development."
           },
           {
@@ -365,7 +365,7 @@
               "6.3"
             ],
             "details": "cd ~/memorymark. Create venv: python3 -m venv venv. Activate: source venv/bin/activate. Install dependencies: pip install torch transformers flask flask-cors pillow. Verify installations: test imports for each package.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "All packages install successfully. python -c 'import torch, transformers, flask' runs without errors."
           },
           {
@@ -376,7 +376,7 @@
               "6.4"
             ],
             "details": "Test memorymark.py: python memorymark.py bert. Should complete analysis and show results. Test Flask server: python app.py. In another terminal/tmux window: curl http://localhost:5000/health. Should return GPU info JSON.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "CLI analysis completes successfully. Flask server starts and health endpoint returns valid JSON with GPU info."
           }
         ]
@@ -657,7 +657,7 @@
     ],
     "metadata": {
       "created": "2025-11-08T10:21:53.186Z",
-      "updated": "2025-11-08T23:27:41.038Z",
+      "updated": "2025-11-08T23:40:34.502Z",
       "description": "Tasks for MemoryMark project - Updated for November 2025 with modern dependencies and torch.compile"
     }
   }
