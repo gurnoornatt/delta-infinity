@@ -72,22 +72,46 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         # Create dummy text inputs
         dummy_texts = ["This is a test sentence for GPU memory analysis."] * batch_size
 
+        print(f"[DEBUG create_dummy_batch] Creating batch of {batch_size} samples")
+        print(f"[DEBUG create_dummy_batch] Processor type: {type(processor).__name__}")
+        print(f"[DEBUG create_dummy_batch] BEFORE check - pad_token: {repr(getattr(processor, 'pad_token', 'ATTR_MISSING'))}")
+        print(f"[DEBUG create_dummy_batch] BEFORE check - pad_token_id: {repr(getattr(processor, 'pad_token_id', 'ATTR_MISSING'))}")
+
+        # Defensive check: Ensure pad_token is set (critical for GPT-2)
+        if not hasattr(processor, 'pad_token') or processor.pad_token is None:
+            print(f"[DEBUG create_dummy_batch] pad_token is None or missing, setting to eos_token")
+            processor.pad_token = processor.eos_token
+            if hasattr(processor, 'pad_token_id'):
+                processor.pad_token_id = processor.eos_token_id
+            print(f"[DEBUG create_dummy_batch] AFTER fix - pad_token: {repr(processor.pad_token)}")
+            print(f"[DEBUG create_dummy_batch] AFTER fix - pad_token_id: {repr(processor.pad_token_id)}")
+        else:
+            print(f"[DEBUG create_dummy_batch] pad_token already set: {repr(processor.pad_token)}")
+
         # Tokenize
-        inputs = processor(
-            dummy_texts,
-            padding='max_length',
-            max_length=MAX_SEQUENCE_LENGTH,
-            truncation=True,
-            return_tensors='pt'
-        )
+        print(f"[DEBUG create_dummy_batch] About to call tokenizer with padding='max_length', max_length={MAX_SEQUENCE_LENGTH}")
+        try:
+            inputs = processor(
+                dummy_texts,
+                padding='max_length',
+                max_length=MAX_SEQUENCE_LENGTH,
+                truncation=True,
+                return_tensors='pt'
+            )
+            print(f"[DEBUG create_dummy_batch] Tokenization successful! Input keys: {inputs.keys()}")
+        except Exception as e:
+            print(f"[DEBUG create_dummy_batch] ERROR during tokenization: {e}")
+            print(f"[DEBUG create_dummy_batch] Exception type: {type(e).__name__}")
+            raise
 
         # Move to device
         inputs = {k: v.to(device) for k, v in inputs.items()}
         return inputs
     else:  # vision
-        # Create dummy images (224x224 RGB)
+        # Create dummy images (224x224 RGB) in [0, 1] range for PIL compatibility
+        # torch.rand creates values in [0, 1) which is required by image processors
         dummy_images = [
-            torch.randn(3, IMAGE_SIZE, IMAGE_SIZE) for _ in range(batch_size)
+            torch.rand(3, IMAGE_SIZE, IMAGE_SIZE) for _ in range(batch_size)
         ]
 
         # Process images
@@ -98,18 +122,22 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         return inputs
 
 
-def load_model(model_name: str, device: str) -> Tuple:
+def load_model(model_name: str, device: str, use_compile: bool = False) -> Tuple:
     """
-    Load a HuggingFace model to specified device.
+    Load a HuggingFace model to specified device with optional PyTorch 2.x compilation.
 
     Args:
         model_name: One of ['bert', 'gpt2', 'resnet']
         device: 'cuda', 'mps', or 'cpu'
+        use_compile: If True, apply torch.compile() for optimized execution (PyTorch 2.0+)
 
     Returns:
-        tuple: (model, processor, model_type)
+        tuple: (model, processor, model_type, is_compiled)
 
-    Reference: https://huggingface.co/docs/transformers/main/en/model_doc/auto
+    References:
+        - HuggingFace AutoModel: https://huggingface.co/docs/transformers/main/en/model_doc/auto
+        - torch.compile: https://docs.pytorch.org/docs/stable/generated/torch.compile.html
+        - torch.compile with transformers: https://huggingface.co/docs/transformers/en/perf_torch_compile
     """
     if model_name not in MODEL_MAP:
         raise ValueError(f"Unknown model: {model_name}. Choose from: {list(MODEL_MAP.keys())}")
@@ -118,21 +146,58 @@ def load_model(model_name: str, device: str) -> Tuple:
 
     if model_name in ['bert', 'gpt2']:
         # NLP models
+        print(f"[DEBUG load_model] Loading tokenizer for {model_name} from {hf_model_name}")
         tokenizer = AutoTokenizer.from_pretrained(hf_model_name)
+
+        print(f"[DEBUG load_model] Tokenizer loaded. Type: {type(tokenizer).__name__}")
+        print(f"[DEBUG load_model] Initial pad_token: {repr(tokenizer.pad_token)}")
+        print(f"[DEBUG load_model] Initial pad_token_id: {repr(tokenizer.pad_token_id)}")
+        print(f"[DEBUG load_model] eos_token: {repr(tokenizer.eos_token)}")
+        print(f"[DEBUG load_model] eos_token_id: {repr(tokenizer.eos_token_id)}")
+
+        # Fix for GPT-2: Set pad_token if not present
+        if tokenizer.pad_token is None:
+            print(f"[DEBUG load_model] pad_token is None, setting to eos_token")
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+            print(f"[DEBUG load_model] After setting - pad_token: {repr(tokenizer.pad_token)}")
+            print(f"[DEBUG load_model] After setting - pad_token_id: {repr(tokenizer.pad_token_id)}")
+        else:
+            print(f"[DEBUG load_model] pad_token already set: {repr(tokenizer.pad_token)}")
+
         model = AutoModelForSequenceClassification.from_pretrained(
             hf_model_name,
             num_labels=2  # Binary classification for dummy task
         )
+
+        # CRITICAL FIX: Set model's config.pad_token_id (not just tokenizer's)
+        # GPT-2 model checks model.config.pad_token_id in forward() for batch processing
+        if model.config.pad_token_id is None:
+            model.config.pad_token_id = tokenizer.pad_token_id
+            print(f"[DEBUG load_model] Set model.config.pad_token_id to {model.config.pad_token_id}")
+
         model = model.to(device)
         model.eval()  # Set to eval mode (disables dropout)
-        return (model, tokenizer, 'nlp')
+
+        # Apply torch.compile if requested (PyTorch 2.0+ only)
+        if use_compile:
+            # Use 'reduce-overhead' mode for optimal memory analysis
+            # This reduces Python overhead and is good for repeated inference
+            model = torch.compile(model, mode='reduce-overhead')
+
+        return (model, tokenizer, 'nlp', use_compile)
     else:  # resnet
         # Vision models
         processor = AutoImageProcessor.from_pretrained(hf_model_name)
         model = AutoModelForImageClassification.from_pretrained(hf_model_name)
         model = model.to(device)
         model.eval()
-        return (model, processor, 'vision')
+
+        # Apply torch.compile if requested
+        if use_compile:
+            model = torch.compile(model, mode='reduce-overhead')
+
+        return (model, processor, 'vision', use_compile)
 
 
 def test_batch_size(model, model_type: str, processor, batch_size: int, device: str) -> Dict:
@@ -259,7 +324,7 @@ def find_optimal_batch_size(model_name: str, device: Optional[str] = None) -> Di
 
     # Load model
     print(f"Loading {model_name}...")
-    model, processor, model_type = load_model(model_name, device)
+    model, processor, model_type, is_compiled = load_model(model_name, device, use_compile=False)
 
     # Get device memory info
     if device == 'cuda':
@@ -325,13 +390,403 @@ def find_optimal_batch_size(model_name: str, device: Optional[str] = None) -> Di
     }
 
 
+def validate_compilation_benefit(model_name: str = 'bert', batch_size: int = 16, device: Optional[str] = None) -> Dict:
+    """
+    Validate that torch.compile provides measurable performance improvements.
+
+    Compares eager mode vs compiled mode for the same model and batch size.
+    Measures execution time and memory usage for both.
+
+    Args:
+        model_name: One of ['bert', 'gpt2', 'resnet']
+        batch_size: Batch size to test
+        device: Optional device override ('cuda', 'mps', 'cpu'). Auto-detected if None.
+
+    Returns:
+        dict: {
+            'model_name': str,
+            'device': str,
+            'batch_size': int,
+            'eager_time_ms': float,
+            'eager_memory_mb': int,
+            'compiled_time_ms': float,
+            'compiled_memory_mb': int,
+            'speedup': float,
+            'memory_ratio': float,
+            'recommendation': str
+        }
+
+    Reference: https://docs.pytorch.org/docs/stable/generated/torch.compile.html
+    """
+    import time
+
+    # Auto-detect device if not specified
+    if device is None:
+        device = get_device()
+
+    print(f"Validating torch.compile benefit on {device.upper()}...")
+    print(f"Model: {model_name}, Batch size: {batch_size}")
+    print("=" * 60)
+
+    # Test 1: Eager mode (no compilation)
+    print("\n[1/2] Testing EAGER mode (no compilation)...")
+    model_eager, processor_eager, model_type_eager, _ = load_model(model_name, device, use_compile=False)
+
+    # Warm-up run (doesn't count)
+    inputs_warmup = create_dummy_batch(model_type_eager, batch_size, processor_eager, device)
+    _ = model_eager(**inputs_warmup)
+    del inputs_warmup
+    if device == 'cuda':
+        torch.cuda.synchronize()
+
+    # Timed run
+    if device == 'cuda':
+        torch.cuda.reset_peak_memory_stats()
+
+    start_time = time.perf_counter()
+    inputs_eager = create_dummy_batch(model_type_eager, batch_size, processor_eager, device)
+    outputs_eager = model_eager(**inputs_eager)
+    loss_eager = outputs_eager.logits.mean() if hasattr(outputs_eager, 'logits') else outputs_eager[0].mean()
+    loss_eager.backward()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    end_time = time.perf_counter()
+
+    eager_time_ms = (end_time - start_time) * 1000
+    if device == 'cuda':
+        eager_memory_mb = int(torch.cuda.max_memory_allocated() / (1024 ** 2))
+    else:
+        eager_memory_mb = 0
+
+    print(f"✓ Eager mode: {eager_time_ms:.2f}ms, {eager_memory_mb}MB")
+
+    # Clean up
+    del model_eager, inputs_eager, outputs_eager, loss_eager
+    if device == 'cuda':
+        torch.cuda.empty_cache()
+
+    # Test 2: Compiled mode
+    print("\n[2/2] Testing COMPILED mode (torch.compile)...")
+    model_compiled, processor_compiled, model_type_compiled, _ = load_model(model_name, device, use_compile=True)
+
+    # Warm-up run (compilation happens here - doesn't count for timing)
+    print("  Compiling model (first run)...")
+    inputs_warmup2 = create_dummy_batch(model_type_compiled, batch_size, processor_compiled, device)
+    _ = model_compiled(**inputs_warmup2)
+    del inputs_warmup2
+    if device == 'cuda':
+        torch.cuda.synchronize()
+
+    # Timed run (should be faster after compilation)
+    if device == 'cuda':
+        torch.cuda.reset_peak_memory_stats()
+
+    start_time = time.perf_counter()
+    inputs_compiled = create_dummy_batch(model_type_compiled, batch_size, processor_compiled, device)
+    outputs_compiled = model_compiled(**inputs_compiled)
+    loss_compiled = outputs_compiled.logits.mean() if hasattr(outputs_compiled, 'logits') else outputs_compiled[0].mean()
+    loss_compiled.backward()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    end_time = time.perf_counter()
+
+    compiled_time_ms = (end_time - start_time) * 1000
+    if device == 'cuda':
+        compiled_memory_mb = int(torch.cuda.max_memory_allocated() / (1024 ** 2))
+    else:
+        compiled_memory_mb = 0
+
+    print(f"✓ Compiled mode: {compiled_time_ms:.2f}ms, {compiled_memory_mb}MB")
+
+    # Calculate benefit
+    speedup = eager_time_ms / compiled_time_ms if compiled_time_ms > 0 else 1.0
+    memory_ratio = compiled_memory_mb / eager_memory_mb if eager_memory_mb > 0 else 1.0
+
+    # Recommendation
+    if speedup >= 1.1:
+        recommendation = f"torch.compile provides {speedup:.2f}x speedup - RECOMMENDED"
+    elif speedup >= 1.0:
+        recommendation = f"torch.compile provides marginal benefit ({speedup:.2f}x) - OPTIONAL"
+    else:
+        recommendation = f"torch.compile slower ({speedup:.2f}x) - NOT RECOMMENDED for this workload"
+
+    print("\n" + "=" * 60)
+    print("VALIDATION RESULTS:")
+    print(f"  Speedup: {speedup:.2f}x")
+    print(f"  Memory ratio: {memory_ratio:.2f}x")
+    print(f"  {recommendation}")
+    print("=" * 60)
+
+    return {
+        'model_name': model_name,
+        'device': device,
+        'batch_size': batch_size,
+        'eager_time_ms': round(eager_time_ms, 2),
+        'eager_memory_mb': eager_memory_mb,
+        'compiled_time_ms': round(compiled_time_ms, 2),
+        'compiled_memory_mb': compiled_memory_mb,
+        'speedup': round(speedup, 2),
+        'memory_ratio': round(memory_ratio, 2),
+        'recommendation': recommendation
+    }
+
+
+def validate_backward_pass(model_name: str = 'bert', batch_size: int = 16, device: Optional[str] = None) -> Dict:
+    """
+    Validate that backward pass is correctly allocating gradient memory.
+
+    This is CRITICAL for MemoryMark accuracy. Without proper backward pass simulation,
+    memory estimates are wrong by 2-3x, causing recommendations to fail in production.
+
+    Compares memory usage for:
+    1. Forward-only (no gradients)
+    2. Forward + Backward (with gradients)
+
+    Expected ratio: 2.0-3.0x (backward adds ~50-60% overhead for gradients)
+    If ratio ~1.0x, backward pass is NOT running (CRITICAL BUG)
+
+    Args:
+        model_name: One of ['bert', 'gpt2', 'resnet']
+        batch_size: Batch size to test (default 16)
+        device: Optional device override ('cuda', 'mps', 'cpu'). Auto-detected if None.
+
+    Returns:
+        dict: {
+            'model_name': str,
+            'device': str,
+            'batch_size': int,
+            'forward_only_memory_mb': int,
+            'forward_backward_memory_mb': int,
+            'ratio': float,
+            'expected_ratio_min': float,
+            'expected_ratio_max': float,
+            'status': str ('PASS' or 'FAIL'),
+            'message': str
+        }
+
+    References:
+        - Tensor.backward(): https://docs.pytorch.org/docs/stable/generated/torch.Tensor.backward.html
+        - CUDA Memory: https://docs.pytorch.org/docs/stable/generated/torch.cuda.memory.max_memory_allocated.html
+        - MPS Memory: https://docs.pytorch.org/docs/stable/generated/torch.mps.current_allocated_memory.html
+    """
+    # Auto-detect device if not specified
+    if device is None:
+        device = get_device()
+
+    print("=" * 60)
+    print("■ BACKWARD PASS VALIDATION TEST")
+    print("=" * 60)
+    print(f"Model: {model_name}")
+    print(f"Device: {device.upper()}")
+    print(f"Batch size: {batch_size}")
+    print()
+    print("This test validates that gradient memory is properly allocated.")
+    print("Expected ratio (forward+backward / forward-only): 2.0-3.0x")
+    print("=" * 60)
+
+    # Load model (no compilation for clean test)
+    print(f"\nLoading {model_name}...")
+    model, processor, model_type, _ = load_model(model_name, device, use_compile=False)
+
+    # === TEST 1: FORWARD-ONLY (NO BACKWARD PASS) ===
+    print("\n[1/2] Testing FORWARD-ONLY (no backward pass)...")
+
+    try:
+        # Clear cache and reset stats
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+
+        # Create batch
+        inputs_forward = create_dummy_batch(model_type, batch_size, processor, device)
+
+        # FORWARD PASS ONLY (no loss, no backward)
+        with torch.no_grad():  # Explicitly disable gradient tracking
+            outputs_forward = model(**inputs_forward)
+
+        # Measure memory
+        if device == 'cuda':
+            forward_only_memory_bytes = torch.cuda.max_memory_allocated()
+        elif device == 'mps':
+            forward_only_memory_bytes = torch.mps.current_allocated_memory()
+        else:
+            forward_only_memory_bytes = 0
+
+        forward_only_memory_mb = int(forward_only_memory_bytes / (1024 ** 2))
+
+        print(f"✓ Forward-only memory: {forward_only_memory_mb} MB")
+
+        # Clean up
+        del inputs_forward, outputs_forward
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+        model.zero_grad()
+
+    except Exception as e:
+        print(f"✗ Forward-only test failed: {e}")
+        raise
+
+    # === TEST 2: FORWARD + BACKWARD ===
+    print("\n[2/2] Testing FORWARD + BACKWARD (with gradients)...")
+
+    try:
+        # Clear cache and reset stats
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+
+        # Create batch
+        inputs_backward = create_dummy_batch(model_type, batch_size, processor, device)
+
+        # FORWARD PASS
+        outputs_backward = model(**inputs_backward)
+
+        # CREATE DUMMY LOSS
+        if model_type == 'nlp':
+            if hasattr(outputs_backward, 'logits'):
+                loss = outputs_backward.logits.mean()
+            else:
+                loss = outputs_backward[0].mean()
+        else:  # vision
+            loss = outputs_backward.logits.mean()
+
+        # BACKWARD PASS - THE CRITICAL OPERATION
+        # This should allocate gradient tensors for all model parameters
+        loss.backward()
+
+        # Measure memory
+        if device == 'cuda':
+            forward_backward_memory_bytes = torch.cuda.max_memory_allocated()
+        elif device == 'mps':
+            forward_backward_memory_bytes = torch.mps.current_allocated_memory()
+        else:
+            forward_backward_memory_bytes = 0
+
+        forward_backward_memory_mb = int(forward_backward_memory_bytes / (1024 ** 2))
+
+        print(f"✓ Forward+Backward memory: {forward_backward_memory_mb} MB")
+
+        # Clean up
+        del inputs_backward, outputs_backward, loss
+        if device == 'cuda':
+            torch.cuda.empty_cache()
+        elif device == 'mps':
+            torch.mps.empty_cache()
+        model.zero_grad()
+
+    except Exception as e:
+        print(f"✗ Forward+Backward test failed: {e}")
+        raise
+
+    # === CALCULATE RATIO AND VALIDATE ===
+    print("\n" + "=" * 60)
+    print("VALIDATION RESULTS:")
+    print("=" * 60)
+
+    # Handle edge case: forward_only_memory_mb is 0 (CPU or measurement failed)
+    if forward_only_memory_mb == 0:
+        ratio = 0.0
+        status = "SKIPPED"
+        message = f"Memory measurement not available on {device.upper()}. This test requires CUDA or MPS."
+        print(f"⚠ {message}")
+    else:
+        ratio = forward_backward_memory_mb / forward_only_memory_mb
+
+        print(f"Forward-only memory:     {forward_only_memory_mb:6} MB")
+        print(f"Forward+Backward memory: {forward_backward_memory_mb:6} MB")
+        print(f"Ratio:                   {ratio:.2f}x")
+        print()
+
+        # Validation criteria: ratio should be 2.0-3.0x
+        EXPECTED_MIN = 2.0
+        EXPECTED_MAX = 3.0
+
+        if EXPECTED_MIN <= ratio <= EXPECTED_MAX:
+            status = "PASS"
+            message = f"✓ PASS: Ratio {ratio:.2f}x is within expected range [{EXPECTED_MIN}-{EXPECTED_MAX}x]. Backward pass is correctly allocating gradient memory."
+            print(f"✓ {message}")
+        elif ratio < EXPECTED_MIN:
+            if ratio < 1.5:
+                status = "FAIL"
+                message = f"✗ FAIL: Ratio {ratio:.2f}x is TOO LOW (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). CRITICAL: Backward pass may not be running! Check loss.backward() implementation."
+                print(f"✗ {message}")
+            else:
+                status = "WARN"
+                message = f"⚠ WARNING: Ratio {ratio:.2f}x is slightly low (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). Backward pass may be working but with lower overhead than typical."
+                print(f"⚠ {message}")
+        else:  # ratio > EXPECTED_MAX
+            status = "WARN"
+            message = f"⚠ WARNING: Ratio {ratio:.2f}x is higher than expected (expected {EXPECTED_MIN}-{EXPECTED_MAX}x). This may indicate additional memory overhead."
+            print(f"⚠ {message}")
+
+    print("=" * 60)
+
+    return {
+        'model_name': model_name,
+        'device': device,
+        'batch_size': batch_size,
+        'forward_only_memory_mb': forward_only_memory_mb,
+        'forward_backward_memory_mb': forward_backward_memory_mb,
+        'ratio': round(ratio, 2),
+        'expected_ratio_min': 2.0,
+        'expected_ratio_max': 3.0,
+        'status': status,
+        'message': message
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python memorymark.py <model_name> [device]")
+        print("       python memorymark.py --validate [model_name]")
+        print("       python memorymark.py --validate-backward [model_name]")
+        print("")
         print("Models: bert, gpt2, resnet")
         print("Device: cuda, mps, cpu (optional, auto-detected)")
+        print("")
+        print("Examples:")
+        print("  python memorymark.py bert                 # Run full analysis on BERT")
+        print("  python memorymark.py --validate           # Validate torch.compile on BERT")
+        print("  python memorymark.py --validate gpt2      # Validate torch.compile on GPT-2")
+        print("  python memorymark.py --validate-backward  # Validate backward pass on BERT")
         sys.exit(1)
 
+    # Check for --validate-backward flag
+    if sys.argv[1] == '--validate-backward':
+        model_name = sys.argv[2] if len(sys.argv) > 2 else 'bert'
+        try:
+            results = validate_backward_pass(model_name)
+            # Results are already printed by the function
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+
+    # Check for --validate flag
+    if sys.argv[1] == '--validate':
+        model_name = sys.argv[2] if len(sys.argv) > 2 else 'bert'
+        try:
+            print("\n" + "="*60)
+            print("■ TORCH.COMPILE VALIDATION TEST")
+            print("="*60)
+            results = validate_compilation_benefit(model_name)
+            # Results are already printed by the function
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+
+    # Normal analysis mode
     model_name = sys.argv[1]
     device = sys.argv[2] if len(sys.argv) > 2 else None
 

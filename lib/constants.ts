@@ -5,14 +5,30 @@ export interface Model {
   params: string
 }
 
+/**
+ * Analysis Result Interface
+ * Maps backend response from Flask /analyze endpoint
+ * Backend fields → Frontend fields (camelCase conversion)
+ */
 export interface AnalysisResult {
-  currentMemoryUsage: number
-  optimalMemoryUsage: number
-  memorySaved: number
-  gpuUtilization: number
-  currentBatchSize: number
-  optimalBatchSize: number
-  speedup: number
+  // Batch size metrics
+  optimalBatchSize: number          // optimal_batch_size - recommended batch size
+  currentBatchSize: number           // current_batch_size - default batch size (16)
+
+  // Memory metrics (in GB)
+  optimalMemoryUsage: number         // optimal_memory_gb - memory at optimal batch
+  currentMemoryUsage: number         // current_memory_gb - memory at current batch
+  wasteGb: number                    // waste_gb - absolute waste in GB
+  memorySaved: number                // Calculated: currentMemoryUsage - optimalMemoryUsage
+  gpuUtilization: number             // Calculated: (optimalMemoryUsage / total_gpu_memory) * 100
+
+  // Percentage and performance metrics
+  wastePercentage: number            // waste_percent - percentage of GPU wasted
+  speedup: number                    // speedup - training speedup factor
+
+  // Cost savings metrics
+  costPerRun: number                 // cost_savings_per_run - savings per training run
+  annualSavings: number              // cost_savings_annual - yearly savings
 }
 
 export const MODELS: Model[] = [
