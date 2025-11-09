@@ -72,6 +72,10 @@ def create_dummy_batch(model_type: str, batch_size: int, processor, device: str)
         # Create dummy text inputs
         dummy_texts = ["This is a test sentence for GPU memory analysis."] * batch_size
 
+        # Fix for GPT-2: Set pad_token if not present
+        if not hasattr(processor, 'pad_token') or processor.pad_token is None:
+            processor.pad_token = processor.eos_token
+
         # Tokenize
         inputs = processor(
             dummy_texts,
