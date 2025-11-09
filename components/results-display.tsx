@@ -34,7 +34,7 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
       {/* Header */}
       <div className="border-b border-border/30 pb-6">
         <h2 className="text-3xl text-foreground mb-2">Memory Analysis Results</h2>
-        <p className="text-sm text-muted-foreground">{model.name} • NVIDIA A100 - 40GB</p>
+        <p className="text-sm text-muted-foreground">{model.name} • NVIDIA A10 - 24GB</p>
       </div>
 
       {/* Summary Card - Main Recommendation */}
@@ -97,7 +97,7 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
             <MemoryGauge
               label="Current Memory"
               value={result.currentMemoryUsage}
-              maxValue={40}
+              maxValue={24}
               color="red"
               unit=" GB"
             />
@@ -110,7 +110,7 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
             <MemoryGauge
               label="Optimal Memory"
               value={result.optimalMemoryUsage}
-              maxValue={40}
+              maxValue={24}
               color="green"
               unit=" GB"
             />
@@ -123,7 +123,7 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
             <MemoryGauge
               label="Memory Saved"
               value={result.memorySaved}
-              maxValue={40}
+              maxValue={24}
               color="green"
               unit=" GB"
             />
@@ -187,7 +187,7 @@ export default function ResultsDisplay({ result, model, onAnalyzeAnother }: Resu
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">GPU Utilization</span>
                 <span className="text-2xl font-bold text-accent">
-                  {Math.round((result.optimalMemoryUsage / 40) * 100)}%
+                  {Math.round((result.optimalMemoryUsage / 24) * 100)}%
                 </span>
               </div>
               <div className="pt-3 border-t border-border/30">

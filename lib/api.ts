@@ -319,8 +319,8 @@ export function mapBackendToFrontend(backendData: BackendAnalysisData) {
   const memorySaved = backendData.current_memory_gb - backendData.optimal_memory_gb
   
   // Calculate GPU utilization (optimal memory / total GPU memory * 100)
-  // Assuming A100 has 40GB total memory
-  const gpuUtilization = Math.round((backendData.optimal_memory_gb / 40) * 100)
+  // Assuming A10 has 24GB total memory
+  const gpuUtilization = Math.round((backendData.optimal_memory_gb / 24) * 100)
   
   return {
     optimalBatchSize: backendData.optimal_batch_size,
