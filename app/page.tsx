@@ -5,7 +5,7 @@ import Header from "@/components/header"
 import ModelSelector from "@/components/model-selector"
 import GPUInfo from "@/components/gpu-info"
 import AnalyzeButton from "@/components/analyze-button"
-import LoadingState from "@/components/loading-state"
+import TerminalView from "@/components/terminal-view"
 import ResultsDisplay from "@/components/results-display"
 import { MODELS, type AnalysisResult } from "@/lib/constants"
 import { analyzeModel, mapBackendToFrontend, APIError } from "@/lib/api"
@@ -21,7 +21,7 @@ export default function Home() {
     setError(null)
 
     try {
-      // Call real Flask backend API
+      // Call real Flask backend API (runs in parallel with terminal animation)
       const backendData = await analyzeModel(selectedModel.id)
 
       // Map backend response to frontend interface
@@ -42,8 +42,16 @@ export default function Home() {
         setError("An unexpected error occurred. Please try again.")
       }
       console.error("Analysis error:", err)
-    } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleTerminalComplete = () => {
+    // Terminal animation completed - if API call finished, show results
+    // If API still running, results will show when it completes
+    if (!isLoading) {
+      // API already finished, results are ready
+      return
     }
   }
 
@@ -107,8 +115,14 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Loading State */}
-              {isLoading && <LoadingState />}
+              {/* Terminal View - Live Analysis */}
+              {isLoading && (
+                <TerminalView
+                  modelName={selectedModel.name}
+                  modelId={selectedModel.id}
+                  onComplete={handleTerminalComplete}
+                />
+              )}
             </div>
           ) : (
             <ResultsDisplay result={result} model={selectedModel} onAnalyzeAnother={handleAnalyzeAnother} />
