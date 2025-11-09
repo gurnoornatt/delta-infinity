@@ -74,9 +74,9 @@ export default function Home() {
         <Header />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {!result ? (
-            <div className="space-y-8">
-              {/* Control Section */}
+          <div className="space-y-8">
+            {/* Control Section - Always visible */}
+            {!result && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ModelSelector models={MODELS} selected={selectedModel} onSelect={setSelectedModel} />
@@ -85,48 +85,71 @@ export default function Home() {
 
                 <AnalyzeButton onClick={handleAnalyze} disabled={isLoading} />
               </div>
+            )}
 
-              {/* Error Display */}
-              {error && (
-                <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
-                  <div className="flex items-start gap-3">
-                    <svg
-                      className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+            {/* Error Display */}
+            {error && (
+              <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-red-500">Error</h3>
+                    <p className="mt-1 text-sm text-red-400">{error}</p>
+                    <button
+                      onClick={() => setError(null)}
+                      className="mt-2 text-sm text-red-400 hover:text-red-300 underline"
                     >
-                      <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-red-500">Error</h3>
-                      <p className="mt-1 text-sm text-red-400">{error}</p>
-                      <button
-                        onClick={() => setError(null)}
-                        className="mt-2 text-sm text-red-400 hover:text-red-300 underline"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
+                      Dismiss
+                    </button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Terminal View - Live Analysis */}
-              {isLoading && (
+            {/* Terminal View - Live Analysis (shown during loading AND after completion if result exists) */}
+            {(isLoading || result) && (
+              <div>
+                {result && (
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-foreground mb-2">Analysis Process</h2>
+                    <p className="text-sm text-muted-foreground">Real-time GPU memory testing on Lambda Labs A10</p>
+                  </div>
+                )}
                 <TerminalView
                   modelName={selectedModel.name}
                   modelId={selectedModel.id}
                   onComplete={handleTerminalComplete}
                 />
-              )}
-            </div>
-          ) : (
-            <ResultsDisplay result={result} model={selectedModel} onAnalyzeAnother={handleAnalyzeAnother} />
-          )}
+              </div>
+            )}
+
+            {/* Transition Divider */}
+            {result && (
+              <div className="relative py-8">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-accent/20"></div>
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-background px-4 text-sm text-muted-foreground">Analysis Complete</span>
+                </div>
+              </div>
+            )}
+
+            {/* Results Display - Shown after completion */}
+            {result && (
+              <ResultsDisplay result={result} model={selectedModel} onAnalyzeAnother={handleAnalyzeAnother} />
+            )}
+          </div>
         </main>
       </div>
     </div>
